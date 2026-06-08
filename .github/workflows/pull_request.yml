@@ -1,0 +1,409 @@
+name: Pull Request
+
+on:
+  pull_request:
+    types:
+      [
+        opened,
+        reopened,
+        synchronize,
+        review_requested,
+        ready_for_review,
+        edited,
+      ]
+  workflow_dispatch:
+    inputs:
+      pr_title:
+        description: "PR title to validate and use for version preview when running manually"
+        required: false
+        type: string
+        default: "chore: manual workflow dispatch"
+
+jobs:
+  check-pr-title:
+    name: PR Title
+    runs-on: ubuntu-latest
+    env:
+      PR_TITLE: ${{ github.event.pull_request.title || inputs.pr_title }}
+      ALLOWED_PREFIXES: "breaking: feat: patch: fix: minor: chore: docs:"
+    steps:
+      - name: Fail if PR title does not start with an allowed prefix
+        run: |
+          echo "PR title: $PR_TITLE"
+          for prefix in $ALLOWED_PREFIXES; do
+            if [[ "$PR_TITLE" == "$prefix"* ]]; then
+              echo "✅ PR title is valid."
+              exit 0
+            fi
+          done
+          echo "::error::❌ PR title must start with one of: $ALLOWED_PREFIXES"
+          exit 1
+
+  check-agent-guidance-sync:
+    name: Agent Docs Sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Fail if AGENTS.md and CLAUDE.md differ
+        run: |
+          if ! cmp -s AGENTS.md CLAUDE.md; then
+            echo "::error::❌ AGENTS.md and CLAUDE.md must be identical."
+            diff -u AGENTS.md CLAUDE.md || true
+            exit 1
+          fi
+          echo "✅ AGENTS.md and CLAUDE.md are identical."
+
+  check:
+    name: Changes
+    needs:
+      - check-pr-title
+      - check-agent-guidance-sync
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+      contents: read
+    outputs:
+      actions: ${{ steps.force_all.outputs.actions || steps.filter.outputs.actions }}
+      terraform: ${{ steps.force_all.outputs.terraform || steps.filter.outputs.terraform }}
+      terragrunt: ${{ steps.force_all.outputs.terragrunt || steps.filter.outputs.terragrunt }}
+      github: ${{ steps.force_all.outputs.github || steps.filter.outputs.github }}
+      frontend: ${{ steps.force_all.outputs.frontend || steps.filter.outputs.frontend }}
+      lambdas: ${{ steps.force_all.outputs.lambdas || steps.filter.outputs.lambdas }}
+      containers: ${{ steps.force_all.outputs.containers || steps.filter.outputs.containers }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Force all change flags for manual dispatch
+        id: force_all
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        shell: bash
+        run: |
+          echo "actions=true" >> "$GITHUB_OUTPUT"
+          echo "terraform=true" >> "$GITHUB_OUTPUT"
+          echo "terragrunt=true" >> "$GITHUB_OUTPUT"
+          echo "github=true" >> "$GITHUB_OUTPUT"
+          echo "frontend=true" >> "$GITHUB_OUTPUT"
+          echo "lambdas=true" >> "$GITHUB_OUTPUT"
+          echo "containers=true" >> "$GITHUB_OUTPUT"
+
+      - name: Detect changed files
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        id: filter
+        uses: ./.github/actions/get-changes
+        with:
+          ref: ${{ github.sha }}
+          base_ref: ${{ github.event.pull_request.base.sha || github.sha }}
+
+      - shell: bash
+        run: echo "actions changes - ${{ steps.filter.outputs.actions }}"
+
+      - shell: bash
+        run: echo "terraform changes - ${{ steps.filter.outputs.terraform }}"
+
+      - shell: bash
+        run: echo "terragrunt changes - ${{ steps.filter.outputs.terragrunt }}"
+
+      - shell: bash
+        run: echo "github changes - ${{ steps.filter.outputs.github }}"
+
+      - shell: bash
+        run: echo "lambdas changes - ${{ steps.filter.outputs.lambdas }}"
+
+      - shell: bash
+        run: echo "frontend changes - ${{ steps.filter.outputs.frontend }}"
+
+  test-next-version-action:
+    name: Next Version Action
+    needs:
+      - check-pr-title
+      - check-agent-guidance-sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Execute get-release-version action
+        id: get_next_version
+        uses: chrispsheehan/get-release-version@0.1.0
+        with:
+          subjects: ${{ github.event.pull_request.title || inputs.pr_title }}
+          major_prefixes: breaking,feat,!feat
+          minor_prefixes: minor,fix,patch
+          patch_prefixes: chore,docs
+          release_bumps: major,minor
+
+      - name: Show action outputs
+        run: |
+          echo "currentVersion=${{ steps.get_next_version.outputs.currentVersion }}"
+          echo "version=${{ steps.get_next_version.outputs.version }}"
+          echo "createNewTag=${{ steps.get_next_version.outputs.createNewTag }}"
+          echo "createNewRelease=${{ steps.get_next_version.outputs.createNewRelease }}"
+          echo "bump=${{ steps.get_next_version.outputs.bump }}"
+
+  format-github:
+    needs: check
+    runs-on: ubuntu-latest
+    if: ${{ needs.check.outputs.github == 'true' }}
+    name: GH Fmt
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v6
+      - uses: raven-actions/actionlint@v2
+        with:
+          shellcheck: false
+          pyflakes: false
+
+  setup:
+    name: Discover
+    needs:
+      - check
+      - format-github
+    if: ${{ needs.check.outputs.actions == 'true' }}
+    uses: ./.github/workflows/shared_directories_get.yml
+
+  lambda-build-matrix:
+    name: Lambda Build Records
+    needs:
+      - check
+      - check-lambda-manifest
+    if: ${{ needs.check.outputs.lambdas == 'true' }}
+    runs-on: ubuntu-latest
+    outputs:
+      lambda_build_matrix: ${{ steps.lambda_build_matrix.outputs.just_outputs }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Get Lambda Build Matrix
+        id: lambda_build_matrix
+        uses: ./.github/actions/just
+        with:
+          justfile_path: justfile.ci
+          just_action: lambda-get-build-matrix
+
+  ecs-build-matrix:
+    name: ECS Build Records
+    needs:
+      - check
+      - check-ecs-manifest
+    if: ${{ needs.check.outputs.containers == 'true' }}
+    runs-on: ubuntu-latest
+    outputs:
+      ecs_build_matrix: ${{ steps.ecs_build_matrix.outputs.just_outputs }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Get ECS Build Matrix
+        id: ecs_build_matrix
+        uses: ./.github/actions/just
+        with:
+          justfile_path: justfile.ci
+          just_action: ecs-get-build-matrix
+
+  action-docker-unit-tests:
+    name: GH Action Docker Unit Tests
+    needs:
+      - check
+      - format-github
+      - setup
+    if: ${{ needs.check.outputs.actions == 'true' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        value: ${{ fromJson(needs.setup.outputs.action_dirs) }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run Docker unit test
+        uses: ./.github/actions/just
+        with:
+          justfile_path: .github/actions/${{ matrix.value }}/justfile
+          just_action: docker-unit-test
+
+  format-terragrunt:
+    needs: check
+    runs-on: ubuntu-latest
+    if: ${{ needs.check.outputs.terraform == 'true' || needs.check.outputs.terragrunt == 'true' }}
+    name: TG Fmt
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v6
+      - uses: hashicorp/setup-terraform@v4
+      - uses: jdx/mise-action@v4
+        with:
+          tool_versions: |
+            terragrunt 0.45.10
+          github_token: ${{ github.token }}
+
+      - name: Verify Terragrunt installation
+        run: terragrunt --version
+
+      - name: Terraform fmt check
+        run: terraform fmt -check -recursive
+        working-directory: infra
+
+      - name: Terragrunt hclfmt check
+        run: terragrunt hclfmt --terragrunt-check
+        working-directory: infra
+
+  lint-terraform:
+    needs: check
+    runs-on: ubuntu-latest
+    if: ${{ needs.check.outputs.terraform == 'true' }}
+    name: TF Lint
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v6
+      - uses: terraform-linters/setup-tflint@v6
+
+      - name: Init TFLint
+        run: tflint --init
+
+      - name: "Run terraform lint checks"
+        uses: ./.github/actions/just
+        with:
+          justfile_path: justfile.ci
+          just_action: tf-lint-check
+
+  check-lambda-manifest:
+    needs: check
+    runs-on: ubuntu-latest
+    if: ${{ needs.check.outputs.lambdas == 'true' }}
+    name: Lambda Manifest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Validate Lambda deploy manifest
+        uses: ./.github/actions/just
+        with:
+          justfile_path: justfile.ci
+          just_action: lambda-get-deploy-matrix
+
+      - name: Validate Lambda stack paths
+        uses: ./.github/actions/just
+        with:
+          justfile_path: justfile.ci
+          just_action: lambda-check-deploy-stacks
+
+  check-ecs-manifest:
+    needs: check
+    runs-on: ubuntu-latest
+    if: ${{ needs.check.outputs.containers == 'true' || needs.check.outputs.terragrunt == 'true' }}
+    name: ECS Manifest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate ECS deploy manifest
+        uses: ./.github/actions/just
+        with:
+          justfile_path: justfile.ci
+          just_action: ecs-get-deploy-matrix
+
+      - name: Fail if task_/service_ pairs are incomplete
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          missing=0
+
+          while IFS= read -r env_dir; do
+            env_name="$(basename "$env_dir")"
+            aws_dir="$env_dir/aws"
+
+            [ -d "$aws_dir" ] || continue
+
+            while IFS= read -r service_dir; do
+              service_name="$(basename "$service_dir")"
+              suffix="${service_name#service_}"
+              task_dir="$aws_dir/task_$suffix"
+
+              if [ ! -d "$task_dir" ]; then
+                echo "::error::❌ Missing task_$suffix for $service_name in $aws_dir"
+                missing=1
+              fi
+            done < <(find "$aws_dir" -mindepth 1 -maxdepth 1 -type d -name 'service_*' | sort)
+
+            while IFS= read -r task_dir; do
+              task_name="$(basename "$task_dir")"
+              suffix="${task_name#task_}"
+              service_dir="$aws_dir/service_$suffix"
+
+              if [ ! -d "$service_dir" ]; then
+                echo "::error::❌ Missing service_$suffix for $task_name in $aws_dir"
+                missing=1
+              fi
+            done < <(find "$aws_dir" -mindepth 1 -maxdepth 1 -type d -name 'task_*' | sort)
+          done < <(find infra/live -mindepth 1 -maxdepth 1 -type d | sort)
+
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+          echo "✅ All ECS task_/service_ pairs are present."
+
+  build-lambdas:
+    name: "${{ matrix.value.artifact_name }}"
+    if: ${{ needs.check.outputs.lambdas == 'true' }}
+    needs:
+      - check
+      - check-lambda-manifest
+      - lambda-build-matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        value: ${{ fromJson(needs.lambda-build-matrix.outputs.lambda_build_matrix) }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: "Build ${{ matrix.value.artifact_name }} Lambda"
+        uses: ./.github/actions/just
+        env:
+          LAMBDA_SOURCE_DIR: ${{ matrix.value.source_dir }}
+          LAMBDA_ARTIFACT_NAME: ${{ matrix.value.artifact_name }}
+        with:
+          justfile_path: justfile.deploy
+          just_action: lambda-build
+
+  build-containers:
+    name: "${{ matrix.value.image }}"
+    if: ${{ needs.check.outputs.containers == 'true' }}
+    needs:
+      - check
+      - check-ecs-manifest
+      - ecs-build-matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        value: ${{ fromJson(needs.ecs-build-matrix.outputs.ecs_build_matrix) }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: "Build ${{ matrix.value.image }} ECS image"
+        uses: ./.github/actions/just
+        env:
+          CONTAINER_NAME: ${{ matrix.value.image }}
+        with:
+          justfile_path: justfile.deploy
+          just_action: docker-build
+
+  build-frontend:
+    if: ${{ needs.check.outputs.frontend == 'true' }}
+    needs: 
+      - check
+    runs-on: ubuntu-latest
+    name: Build Frontend
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - name: "Build"
+        uses: ./.github/actions/just
+        with:
+          justfile_path: justfile.deploy
+          just_action: frontend-build

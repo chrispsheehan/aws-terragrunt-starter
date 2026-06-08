@@ -1,0 +1,212 @@
+name: Shared Build
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      lambda_version:
+        required: true
+        type: string
+      frontend_version:
+        required: true
+        type: string
+      ecs_version:
+        required: true
+        type: string
+    outputs:
+      code_bucket:
+        description: "Bucket containing build artifacts"
+        value: ${{ jobs.bucket.outputs.code_bucket_name }}
+      lambda_version:
+        description: "Resolved lambda version"
+        value: ${{ inputs.lambda_version }}
+      frontend_version:
+        description: "Resolved frontend version"
+        value: ${{ inputs.frontend_version }}
+      ecs_version:
+        description: "Resolved ECS version"
+        value: ${{ inputs.ecs_version }}
+      repository_url:
+        description: "ECR repository url"
+        value: ${{ jobs.ecr.outputs.repository_url }}
+
+concurrency: # only run one instance of workflow at any one time
+  group: build-${{ inputs.environment }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: write
+
+env:
+  VERSION: ${{ inputs.lambda_version }}
+  AWS_OIDC_ROLE_ARN: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.PROJECT_NAME }}-${{ inputs.environment }}-github-oidc-role
+  AWS_REGION: ${{ vars.AWS_REGION }}
+
+jobs:
+  lambda-matrix:
+    name: Lambda Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      lambda_build_matrix: ${{ steps.lambda_build_matrix.outputs.just_outputs }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.lambda_version }}
+
+      - name: Get Lambda Build Matrix
+        id: lambda_build_matrix
+        uses: ./.github/actions/just
+        with:
+          justfile_path: justfile.ci
+          just_action: lambda-get-build-matrix
+
+  ecs-matrix:
+    name: ECS Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      ecs_build_matrix: ${{ steps.ecs_build_matrix.outputs.just_outputs }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ecs_version }}
+
+      - name: Get ECS Build Matrix
+        id: ecs_build_matrix
+        uses: ./.github/actions/just
+        with:
+          justfile_path: justfile.ci
+          just_action: ecs-get-build-matrix
+
+  bucket:
+    name: Code Bucket
+    runs-on: ubuntu-latest
+    outputs:
+      code_bucket_name: ${{ steps.get_bucket_name.outputs.bucket }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ env.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get build artifact bucket
+        id: deploy_bucket
+        uses: ./.github/actions/terragrunt
+        with:
+          tg_directory: infra/live/${{ inputs.environment }}/aws/code_bucket
+          tg_action: init
+
+      - name: Get bucket name
+        id: get_bucket_name
+        env:
+          TG_OUTPUTS: ${{ steps.deploy_bucket.outputs.tg_outputs  }}
+        run: |
+          echo "bucket=$(echo $TG_OUTPUTS | jq -r '.bucket.value')" >> $GITHUB_OUTPUT
+
+  frontend:
+    name: Frontend
+    needs: bucket
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ env.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Upload frontend
+        uses: ./.github/actions/just
+        env:
+          BUCKET_NAME: ${{ needs.bucket.outputs.code_bucket_name }}
+          VERSION: ${{ inputs.frontend_version }}
+        with:
+          justfile_path: justfile.deploy
+          just_action: frontend-build frontend-upload
+
+  ecr:
+    name: ECR
+    runs-on: ubuntu-latest
+    outputs:
+      repository_url: ${{ steps.get_repository_url.outputs.repository_url }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ env.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get ECR infra
+        id: get-ecr
+        uses: ./.github/actions/terragrunt
+        with:
+          tg_directory: infra/live/${{ inputs.environment }}/aws/ecr
+          tg_action: init
+
+      - name: Get ECR repository url
+        id: get_repository_url
+        env:
+          TG_OUTPUTS: ${{ steps.get-ecr.outputs.tg_outputs }}
+        run: |
+          echo "repository_url=$(echo $TG_OUTPUTS | jq -r '.repository_url.value')" >> $GITHUB_OUTPUT
+
+  containers:
+    name: "${{ matrix.value.image }}"
+    needs:
+      - ecr
+      - ecs-matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        value: ${{ fromJson(needs.ecs-matrix.outputs.ecs_build_matrix) }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ env.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: "Build ${{ matrix.value.image }} ECS image"
+        uses: ./.github/actions/just
+        env:
+          CONTAINER_NAME: ${{ matrix.value.image }}
+          IMAGE_URI: ${{ needs.ecr.outputs.repository_url }}:${{ matrix.value.image }}-${{ inputs.ecs_version }}
+        with:
+          justfile_path: justfile.deploy
+          just_action: docker-build docker-push
+
+  lambdas:
+    name: "${{ matrix.value.artifact_name }}"
+    needs:
+      - bucket
+      - lambda-matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        value: ${{ fromJson(needs.lambda-matrix.outputs.lambda_build_matrix) }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ env.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: "Upload ${{ matrix.value.artifact_name }} Lambda"
+        uses: ./.github/actions/just
+        env:
+          LAMBDA_SOURCE_DIR: ${{ matrix.value.source_dir }}
+          LAMBDA_ARTIFACT_NAME: ${{ matrix.value.artifact_name }}
+          BUCKET_NAME: ${{ needs.bucket.outputs.code_bucket_name }}
+          VERSION: ${{ inputs.lambda_version }}
+        with:
+          justfile_path: justfile.deploy
+          just_action: lambda-build lambda-upload

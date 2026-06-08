@@ -1,0 +1,6 @@
+version: 1
+
+lambdas:
+  - stack: infra/live/{environment}/aws/migrations
+    source_dir: lambdas/migrations
+    after_deploy: invoke

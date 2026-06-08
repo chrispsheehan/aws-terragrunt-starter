@@ -1,0 +1,30 @@
+name: Dev Code Deploy
+# This deploys code changes to dev without touching infra.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: write
+
+jobs:
+  build:
+    name: Build
+    uses: ./.github/workflows/shared_build.yml
+    with:
+      environment: dev
+      lambda_version: ${{ github.sha }}
+      ecs_version: ${{ github.sha }}
+
+  deploy:
+    name: Deploy
+    uses: ./.github/workflows/shared_deploy.yml
+    needs:
+      - build
+    with:
+      environment: dev
+      lambda_version: ${{ needs.build.outputs.lambda_version }}
+      ecs_version: ${{ needs.build.outputs.ecs_version }}
+      code_bucket: ${{ needs.build.outputs.code_bucket }}
+      repository_url: ${{ needs.build.outputs.repository_url }}

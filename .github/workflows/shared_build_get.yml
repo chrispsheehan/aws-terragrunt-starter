@@ -1,0 +1,205 @@
+name: Shared Build Get
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      lambda_version:
+        required: true
+        type: string
+      frontend_version:
+        required: false
+        type: string
+      ecs_version:
+        required: false
+        type: string
+    outputs:
+      code_bucket:
+        description: "Bucket containing build artifacts"
+        value: ${{ jobs.bucket.outputs.code_bucket_name }}
+      lambda_version:
+        description: "Resolved lambda version"
+        value: ${{ inputs.lambda_version }}
+      frontend_version:
+        description: "Resolved frontend version"
+        value: ${{ inputs.frontend_version != '' && inputs.frontend_version || inputs.lambda_version }}
+      ecs_version:
+        description: "Resolved ECS version"
+        value: ${{ inputs.ecs_version != '' && inputs.ecs_version || inputs.lambda_version }}
+      repository_url:
+        description: "Resolved ECR repository URL"
+        value: ${{ jobs.ecr.outputs.repository_url }}
+
+concurrency: # only run one instance of workflow at any one time
+  group: ${{ github.workflow }}-${{ inputs.environment }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: write
+
+env:
+  AWS_OIDC_ROLE_ARN: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.PROJECT_NAME }}-${{ inputs.environment }}-github-oidc-role"
+  AWS_REGION: ${{ vars.AWS_REGION }}
+
+jobs:
+  bucket:
+    name: Code Bucket
+    runs-on: ubuntu-latest
+    outputs:
+      code_bucket_name: ${{ steps.get_bucket_name.outputs.bucket }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ecs_version != '' && inputs.ecs_version || inputs.lambda_version }}
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ env.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get code bucket outputs
+        uses: ./.github/actions/terragrunt
+        id: code_action
+        with:
+          tg_directory: infra/live/${{ inputs.environment }}/aws/code_bucket
+          tg_action: init
+
+      - name: Get bucket name
+        id: get_bucket_name
+        env:
+          TG_OUTPUTS: ${{ steps.code_action.outputs.tg_outputs }}
+        run: |
+          echo "🔍 Raw TG_OUTPUTS:"
+          echo "$TG_OUTPUTS" | jq .
+
+          bucket=$(echo "$TG_OUTPUTS" | jq -r '.bucket.value // empty')
+
+          if [ -z "$bucket" ] || [ "$bucket" = "null" ]; then
+            echo "::error title=Missing code bucket::Failed to extract '.bucket.value' from Terragrunt output for infra/live/${{ inputs.environment }}/aws/code_bucket"
+            echo "::error::Full TG_OUTPUTS:"
+            exit 1
+          fi
+
+          echo "bucket=$bucket" >> "$GITHUB_OUTPUT"
+
+  ecr:
+    name: ECR
+    runs-on: ubuntu-latest
+    outputs:
+      repository_url: ${{ steps.get_repository_url.outputs.repository_url }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.lambda_version }}
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ env.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get ECR infra
+        id: get-ecr
+        uses: ./.github/actions/terragrunt
+        with:
+          tg_directory: infra/live/${{ inputs.environment }}/aws/ecr
+          tg_action: init
+
+      - name: Get ECR repository url
+        id: get_repository_url
+        env:
+          TG_OUTPUTS: ${{ steps.get-ecr.outputs.tg_outputs }}
+        run: |
+          echo "🔍 Raw TG_OUTPUTS:"
+          echo "$TG_OUTPUTS" | jq .
+
+          repository_url=$(echo "$TG_OUTPUTS" | jq -r '.repository_url.value // empty')
+
+          if [ -z "$repository_url" ] || [ "$repository_url" = "null" ]; then
+            echo "::error title=Missing ECR repository URL::Failed to extract '.repository_url.value' from Terragrunt output for infra/live/${{ inputs.environment }}/aws/ecr"
+            echo "::error::Full TG_OUTPUTS:"
+            exit 1
+          fi
+
+          echo "repository_url=$repository_url" >> "$GITHUB_OUTPUT"
+
+  images:
+    name: Images
+    needs: ecr
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.lambda_version }}
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ env.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Check ECS images exist
+        uses: ./.github/actions/just
+        env:
+          REPOSITORY_URL: ${{ needs.ecr.outputs.repository_url }}
+          VERSION: ${{ inputs.ecs_version != '' && inputs.ecs_version || inputs.lambda_version }}
+        with:
+          justfile_path: justfile.ci
+          just_action: ecs-check-deploy-images
+
+  frontend:
+    name: Frontend
+    needs: bucket
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.lambda_version }}
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ env.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Check frontend version exists
+        uses: ./.github/actions/just
+        env:
+          BUCKET_NAME: ${{ needs.bucket.outputs.code_bucket_name }}
+          VERSION: ${{ inputs.frontend_version != '' && inputs.frontend_version || inputs.lambda_version }}
+        with:
+          justfile_path: justfile.ci
+          just_action: frontend-check-version
+
+  lambdas:
+    name: Lambdas
+    needs: bucket
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.lambda_version }}
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ env.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Check Lambda version exists
+        uses: ./.github/actions/just
+        env:
+          BUCKET_NAME: ${{ needs.bucket.outputs.code_bucket_name }}
+          VERSION: ${{ inputs.lambda_version }}
+        with:
+          justfile_path: justfile.ci
+          just_action: lambda-check-version
+
+      - name: Check Lambda deploy artifacts exist
+        uses: ./.github/actions/just
+        env:
+          BUCKET_NAME: ${{ needs.bucket.outputs.code_bucket_name }}
+          VERSION: ${{ inputs.lambda_version }}
+        with:
+          justfile_path: justfile.ci
+          just_action: lambda-check-deploy-artifacts

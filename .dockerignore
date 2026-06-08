@@ -1,0 +1,13 @@
+.git
+.github
+.claude
+venv
+dist
+node_modules
+.DS_Store
+/justfile*
+/*.md
+/*.yml
+/*.yaml
+containers/README.md
+lambdas/README.md
