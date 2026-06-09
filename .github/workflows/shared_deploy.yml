@@ -90,14 +90,10 @@ jobs:
       - name: Set Lambda deploy paths
         id: lambda_paths
         shell: bash
-        env:
-          ENVIRONMENT: ${{ inputs.environment }}
         run: |
-          stack_path="infra/live/$ENVIRONMENT/aws/migrations"
           stack_name="migrations"
           lambda_zip_key="lambdas/${{ inputs.lambda_version }}/migrations.zip"
           lambda_appspec_key="lambdas/${{ inputs.lambda_version }}/$stack_name-appspec.zip"
-          echo "stack_path=$stack_path" >> $GITHUB_OUTPUT
           echo "lambda_zip_key=$lambda_zip_key" >> $GITHUB_OUTPUT
           echo "lambda_appspec_key=$lambda_appspec_key" >> $GITHUB_OUTPUT
 
@@ -105,7 +101,7 @@ jobs:
         uses: ./.github/actions/terragrunt
         id: get-infra
         with:
-          tg_directory: ${{ steps.lambda_paths.outputs.stack_path }}
+          tg_directory: infra/live/${{ inputs.environment }}/aws/migrations
           tg_action: init
 
       - name: Get infra detail
@@ -199,22 +195,13 @@ jobs:
           echo "service_image_uri=${ECR_REPOSITORY_URL}:worker-${ECS_VERSION}" >> "$GITHUB_OUTPUT"
           echo "debug_uri=${ECR_REPOSITORY_URL}:debug-${ECS_VERSION}" >> "$GITHUB_OUTPUT"
 
-      - name: Set ECS stack paths
-        id: ecs_paths
-        shell: bash
-        env:
-          ENVIRONMENT: ${{ inputs.environment }}
-        run: |
-          echo "task_stack_path=infra/live/$ENVIRONMENT/aws/task_worker" >> "$GITHUB_OUTPUT"
-          echo "service_stack_path=infra/live/$ENVIRONMENT/aws/service_worker" >> "$GITHUB_OUTPUT"
-
       - name: Deploy worker ECS task
         uses: ./.github/actions/terragrunt
         env:
           TF_VAR_image_uri: ${{ steps.task_inputs.outputs.service_image_uri }}
           TF_VAR_debug_uri: ${{ steps.task_inputs.outputs.debug_uri }}
         with:
-          tg_directory: ${{ steps.ecs_paths.outputs.task_stack_path }}
+          tg_directory: infra/live/${{ inputs.environment }}/aws/task_worker
 
   service-worker:
     name: Worker Service
@@ -230,20 +217,11 @@ jobs:
           role-to-assume: ${{ env.AWS_OIDC_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Set ECS stack paths
-        id: ecs_paths
-        shell: bash
-        env:
-          ENVIRONMENT: ${{ inputs.environment }}
-        run: |
-          echo "task_stack_path=infra/live/$ENVIRONMENT/aws/task_worker" >> "$GITHUB_OUTPUT"
-          echo "service_stack_path=infra/live/$ENVIRONMENT/aws/service_worker" >> "$GITHUB_OUTPUT"
-
       - name: Get worker task infra
         uses: ./.github/actions/terragrunt
         id: get-task-infra
         with:
-          tg_directory: ${{ steps.ecs_paths.outputs.task_stack_path }}
+          tg_directory: infra/live/${{ inputs.environment }}/aws/task_worker
           tg_action: init
 
       - name: Get worker task outputs
@@ -257,7 +235,7 @@ jobs:
         uses: ./.github/actions/terragrunt
         id: get-service-infra
         with:
-          tg_directory: ${{ steps.ecs_paths.outputs.service_stack_path }}
+          tg_directory: infra/live/${{ inputs.environment }}/aws/service_worker
           tg_action: init
 
       - name: Get worker service outputs
