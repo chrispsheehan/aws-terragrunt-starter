@@ -5,6 +5,7 @@ Lambda source directories for this boilerplate.
 ## Structure
 
 - `migrations/` is the fixed Lambda source directory used by CI
+- `appspec-lambda.yml` is the Lambda CodeDeploy AppSpec template rendered by deploy workflows
 - the generated `lambdas/build` directory is build output only and is intentionally excluded from Lambda discovery
 - the deployable Lambda also needs `infra/live/<environment>/aws/migrations`
 
@@ -23,7 +24,7 @@ Lambda source directories for this boilerplate.
 - the Lambda build flow installs `requirements.txt` into a per-Lambda build directory
 - it copies Python source files into the zip artifact
 - markdown files in Lambda source trees are documentation only and are pruned before the zip artifact is created
-- runtime shape validation expects both `lambdas/migrations` and the dev/prod `migrations` live stacks
+- deploy workflows render `appspec-lambda.yml` to `appspec-lambda.rendered.yml` before uploading the AppSpec bundle
 
 ## Boilerplate Patterns
 

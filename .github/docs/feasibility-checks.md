@@ -23,7 +23,7 @@ Run these checks on every CI, workflow, or deploy-contract change.
 
 - Both repo-local composite actions, `./.github/actions/just` and `./.github/actions/terragrunt`, assume AWS credentials are already configured in the job when they need AWS access.
 - When using `./.github/actions/just`, check whether the caller needs the repo-root `justfile` or an explicit `justfile_path`.
-- If a deploy step passes `APP_SPEC_FILE`, keep it aligned with shared AppSpec templates under `config/deploy/`.
+- If a deploy step passes `APP_SPEC_FILE`, keep it aligned with the Lambda AppSpec template under `lambdas/`.
 - Keep split `just` ownership clear:
   - repo-root `justfile` for local/developer commands
   - `justfile.ci` for read-only CI helpers

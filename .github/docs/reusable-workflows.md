@@ -93,7 +93,7 @@ Current infra selection comes from the Terragrunt dependency graph and derived w
 - Applies the `task_worker` stack with `worker` and `debug` image URIs.
 - Updates the `service_worker` ECS service.
 - Configures AWS credentials once at job start and lets local `just` and Terragrunt actions reuse that ambient session.
-- Renders Lambda CodeDeploy AppSpec files from shared templates under `config/deploy/`.
+- Renders Lambda CodeDeploy AppSpec files from the template under `lambdas/`.
 - Mutating `just` steps should target `justfile.deploy` rather than the repo-root `justfile`.
 
 ## Ownership Boundary

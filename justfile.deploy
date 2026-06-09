@@ -191,7 +191,7 @@ lambda-prepare-appspec:
     fi
 
     mkdir -p "$(dirname "$APP_SPEC_FILE")"
-    cp "{{justfile_directory()}}/config/deploy/appspec-lambda.yml" "$APP_SPEC_FILE"
+    cp "{{justfile_directory()}}/{{LAMBDA_DIR}}/appspec-lambda.yml" "$APP_SPEC_FILE"
 
     yq eval -i '
       .Resources[0].LambdaFunction.Properties.Name = env(FUNCTION_NAME) |
@@ -207,7 +207,7 @@ lambda-upload-bundle:
     #!/usr/bin/env bash
     just --justfile "{{PROJECT_DIR}}/justfile.deploy" lambda-prepare-appspec
 
-    LOCAL_APP_SPEC_ZIP="{{justfile_directory()}}/config/deploy/appspec-lambda.zip"
+    LOCAL_APP_SPEC_ZIP="{{justfile_directory()}}/{{LAMBDA_DIR}}/appspec-lambda.zip"
     TMPDIR="$(mktemp -d)"
     rm -f $LOCAL_APP_SPEC_ZIP
     cp "$APP_SPEC_FILE" "$TMPDIR/appspec.yml"

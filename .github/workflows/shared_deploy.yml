@@ -145,7 +145,7 @@ jobs:
           ALIAS_NAME: ${{ steps.get_infra_detail.outputs.lambda_alias_name }}
           CURRENT_VERSION: ${{ steps.get-version.outputs.just_outputs }}
           NEW_VERSION: ${{ steps.publish.outputs.just_outputs }}
-          APP_SPEC_FILE: ${{ github.workspace }}/config/deploy/appspec-lambda.rendered.yml
+          APP_SPEC_FILE: ${{ github.workspace }}/lambdas/appspec-lambda.rendered.yml
           APP_SPEC_KEY: ${{ steps.lambda_paths.outputs.lambda_appspec_key }}
         with:
           justfile_path: justfile.deploy
