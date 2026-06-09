@@ -2,6 +2,17 @@
 
 Use this when editing shared workflows under `.github/workflows/shared_*.yml` or the workflow contracts they expose.
 
+## Contract Checks
+
+When changing reusable workflows:
+
+- Compare every caller `with:` block against the callee `workflow_call.inputs`.
+- Compare expected outputs against actual `jobs.<job>.outputs.*`.
+- Confirm every `needs.<job>.outputs.*` reference is in scope.
+- Verify optional inputs are intentionally omitted, not accidentally missing.
+- Confirm matrix values still match naming contracts expected by workflows and modules.
+- Do not change CI ordering blindly; first check whether the issue is avoidable cross-stack coupling.
+
 ## Release And Validation
 
 `release.yml` creates release tags, prepares shared CI artifacts, builds release outputs, and publishes GitHub releases.
@@ -49,9 +60,10 @@ Use this when editing shared workflows under `.github/workflows/shared_*.yml` or
 
 ```mermaid
 flowchart LR
-  call["Workflow Call"] --> prep["Prepare / Read Shared Artifacts"]
-  prep --> build["Build Runtime Artifacts"]
-  build --> resolve["Resolve Fixed References"]
+  dev["Dev Code Deploy"] --> build["Build Lambda Zip And Images"]
+  prod["Prod Code Deploy"] --> resolve["Resolve Existing Release Artifacts"]
+  build --> deploy["Shared Deploy"]
+  resolve --> deploy
 ```
 
 ## Shared Infra Wrappers
@@ -81,6 +93,15 @@ Current infra selection comes from the Terragrunt dependency graph and derived w
 - shared infra plan/apply wrappers set `TF_VAR_bootstrap=true` so ECS service stacks can create the stable service surface before the first real task revision is deployed
 - If a live environment is pruned to a smaller or differently shaped dependency closure, run `just tg-graph-waves <env>` and keep the static wave outputs/jobs aligned with the derived dependency depth for that environment.
 
+`shared_get_modules.yml` filtering inputs:
+
+- `ignore_task_modules: true` excludes `task_*` modules from emitted waves.
+- `ignore_shared_artifact_modules: true` omits shared artifact stacks such as `code_bucket` and `ecr`.
+- `ignore_oidc_module: true` excludes `oidc`.
+- `show_wave_summary: false` suppresses the wave overview step summary.
+- `wave_summary_title`, `wave_summary_note`, and `wave_summary_order` label the overview and choose forward or reverse row order.
+- `show_wave_json: true` includes raw wave JSON below the overview for debugging.
+
 ## Code Deploy
 
 `shared_deploy.yml` rolls out feature code.
@@ -92,6 +113,7 @@ Current infra selection comes from the Terragrunt dependency graph and derived w
 - Updates the `service_worker` ECS service.
 - Configures AWS credentials once at job start and lets local `just` and Terragrunt actions reuse that ambient session.
 - Renders Lambda CodeDeploy AppSpec files from the template under `lambdas/`.
+- If a deploy step passes `APP_SPEC_FILE`, keep it aligned with the Lambda AppSpec template under `lambdas/`.
 - Mutating `just` steps should target `justfile.deploy` rather than the repo-root `justfile`.
 
 ## Ownership Boundary

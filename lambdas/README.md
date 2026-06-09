@@ -42,4 +42,4 @@ Lambda source directories for this boilerplate.
 ## Related Docs
 
 - migrations deployment rules: [infra/modules/aws/migrations/README.md](../infra/modules/aws/migrations/README.md)
-- shared infra context: [infra/README.md](../infra/README.md)
+- shared infra context: [README.md](../README.md)

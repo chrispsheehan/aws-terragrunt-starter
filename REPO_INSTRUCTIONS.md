@@ -21,9 +21,8 @@ These instructions apply to the entire repository.
 - README files explain the system to humans and agents; `REPO_INSTRUCTIONS.md` tells agents how to work in this repo
 - keep human-facing technical contracts in the nearest owning README, not duplicated in `REPO_INSTRUCTIONS.md`
 - use `REPO_INSTRUCTIONS.md` as the agent operating manual and context router
-- entry point: `README.md` (human-facing high-level map only)
+- entry point: `README.md` (human-facing high-level map, setup, and infra layout)
 - workflow contracts: `.github/docs/README.md`
-- infra layout, stack ownership, dependency strategy, and phased infra rollout: `infra/README.md`
 - module contracts: `infra/modules/**/README.md` (shared contracts live under `infra/modules/aws/_shared/**/README.md`)
 - runtime behavior: `lambdas/**/README.md` and `containers/**/README.md`
 - before editing, read the relevant local contract docs for the files you plan to touch and follow those contracts
@@ -40,7 +39,7 @@ These instructions apply to the entire repository.
 
 ## CI OIDC Scope
 
-- when changing CI OIDC roles, deploy permissions, artifact permissions, or `infra/live/ci/aws/oidc/terragrunt.hcl`, read `infra/modules/aws/_shared/oidc/README.md` and `.github/docs/repo-local-actions.md` before editing
+- when changing CI OIDC roles, deploy permissions, artifact permissions, or `infra/live/ci/aws/oidc/terragrunt.hcl`, read `infra/modules/aws/_shared/oidc/README.md` and `.github/docs/reusable-workflows.md` before editing
 - treat the CI OIDC role as artifact-scoped unless the user explicitly asks to change that contract
 
 ## Protected Live Stacks
@@ -52,14 +51,14 @@ These instructions apply to the entire repository.
 ## Feasibility + Dependency Checks (When Editing Infra / Workflows)
 
 - verify the runtime/deploy shape and required backing resources before changing infra or workflow ordering
-- before adding environments or changing generated AWS names, check `infra/README.md#aws-name-length-and-project-naming`
+- before adding environments or changing generated AWS names, verify the resulting AWS names because many names include account, region, environment, and repo name
 - before adding Terragrunt dependency edges, verify the target live stack exists in that environment and keep graph waves aligned with `just tg-graph-waves <env>`
 - when changing reusable workflows, compare caller `with:` blocks to `workflow_call.inputs`, remove dead contract fields, and keep job `name:` values human-readable
 - for shared infra plan/apply workflows, keep `task_*` stacks out of infra waves because code deploy owns task-definition rollout
-- for cross-stack output passthroughs, follow `infra/README.md#output-passthrough-contract`
+- for cross-stack output passthroughs, preserve consumer-facing output names and update the nearest module README
 - prefer Terragrunt `dependency` inputs plus `mock_outputs` over `terraform_remote_state`; if remote state is intentional, add a `# remote_state_reason: ...` comment
 - when introducing or expanding bootstrap/mock-output behavior, update the nearest owning human-facing README
-- for detailed checks, read `infra/README.md`, `.github/docs/feasibility-checks.md`, `.github/docs/discovery-and-matrices.md`, and `.github/docs/reusable-workflows.md`
+- for detailed checks, read `README.md` and `.github/docs/reusable-workflows.md`
 
 ## Terragrunt Plan Expectation
 
@@ -69,7 +68,7 @@ These instructions apply to the entire repository.
 - for noisy plans or logs, write command output under ignored `tmp/` and return only filtered summary lines such as `No changes`, `Plan:`, `Error:`, `Failed`, or relevant `WARN`
 - treat saved plans as apply-intent artifacts; do not apply plans that captured bootstrap/mock values
 - if credentials, network, permissions, or state access block planning, say so and name the exact manual plan command
-- for saved-plan and mock-output details, read `infra/README.md`, `infra/docs/deployment-model.md`, and `.github/docs/artifacts-and-plans.md`
+- for saved-plan and mock-output details, read `infra/readme.md` and `.github/docs/artifacts-and-plans.md`
 
 ## High-Signal Edit Warnings
 
