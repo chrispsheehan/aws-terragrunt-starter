@@ -6,7 +6,7 @@ Use this when editing shared workflows under `.github/workflows/shared_*.yml` or
 
 `release.yml` creates release tags, prepares shared CI artifacts, builds release outputs, and publishes GitHub releases.
 
-- Version bumps come from `chrispsheehan/get-release-version`, which scans commit subjects since the latest semver tag.
+- Version bumps come from `./.github/actions/get-release-version`, which scans commit subjects since the latest semver tag.
 - Configurable bump prefixes classify major, minor, and patch releases.
 - `createNewTag` is the tag-creation predicate.
 - `createNewRelease` is the full-release predicate.
@@ -15,7 +15,7 @@ Use this when editing shared workflows under `.github/workflows/shared_*.yml` or
 
 `pull_request.yml` provides fast validation.
 
-- Checks workflow syntax, Terraform formatting/linting, changed runtime builds, agent-wrapper sync, and direct execution of `chrispsheehan/get-release-version`.
+- Checks workflow syntax, Terraform formatting/linting, changed runtime builds, agent-wrapper sync, and direct execution of `./.github/actions/get-release-version`.
 - The agent-wrapper sync check verifies `AGENTS.md` and `CLAUDE.md` match the standard wrapper directing agents to `REPO_INSTRUCTIONS.md`.
 - The version preview job classifies the PR title and shows the implied tag version, `createNewTag`, `createNewRelease`, and bump level.
 - Its `check` job normally runs `.github/actions/get-changes` using the PR base SHA for a PR-style `base...HEAD` diff.
@@ -25,8 +25,6 @@ Use this when editing shared workflows under `.github/workflows/shared_*.yml` or
 - ECS source changes build the fixed `worker` and `debug` images directly.
 - Terragrunt installation uses `jdx/mise-action@v4`.
 - TFLint setup uses the Node 24 `terraform-linters/setup-tflint@v6` line.
-
-The version action is maintained outside this repository.
 
 ## Shared Artifact Prep And Build
 

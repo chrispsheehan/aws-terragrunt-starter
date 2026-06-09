@@ -1,0 +1,83 @@
+# get-release-version
+
+Repo-local GitHub Action and CLI for computing the next semver tag from commit subject prefixes since the latest semver tag.
+
+The GitHub Action itself runs through the Docker image defined in this directory's `Dockerfile`.
+The `justfile` is only a local test harness; the Docker action itself runs the Python entrypoint directly.
+Inside GitHub Actions, the script resolves the checkout from `GITHUB_WORKSPACE` rather than assuming a fixed Docker working directory.
+For local runs, `just local-test` sets `GITHUB_WORKSPACE` to the repository root before invoking the script.
+
+By default, this action follows the [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/) versioning rules.
+
+Default versioning contract:
+
+- major: commits with `!`, `BREAKING CHANGE:`, or `BREAKING-CHANGE:`
+- minor: commits with type `feat`
+- patch: commits with type `fix`
+- `release_bumps`: `major,minor,patch`
+- `tag_prefix`: empty string
+- when no matching semver tag exists, `currentVersion` falls back to `0.0.1` with the configured prefix
+- short manual tags like `1`, `1.1`, `v1`, and `v1.1` are accepted as previous versions and normalized when calculating the next full semver tag
+- non-version tags like `prod`, `dev`, or `latest` are ignored for version calculation
+
+Optional override:
+
+- `subjects`: newline-delimited subjects to classify instead of reading git history
+- this is useful in PR validation when you want to preview the version implied by the PR title rather than the branch commit list
+- `major_prefixes`, `minor_prefixes`, and `patch_prefixes`: comma-delimited commit types to classify differently from the defaults
+- `release_bumps`: comma-delimited bump levels that should create a full release; for example `major` limits releases to major bumps while still allowing minor and patch subjects to create tags
+- `tag_prefix`: optional tag prefix; for example `v` discovers tags like `v1`, `v1.2`, and `v1.2.3`, then outputs versions like `v1.2.4`
+
+## GitHub Actions Usage
+
+```yaml
+- uses: ./.github/actions/get-release-version
+  id: get-release-version
+```
+
+Available outputs:
+
+- `currentVersion`: latest matching semver tag, or `0.0.1` with the configured prefix when none exists
+- `version`: next semver tag when a matching commit exists, otherwise the current tag
+- `createNewTag`: whether a new semver tag should be created
+- `createNewRelease`: whether the resolved bump level should create full release work
+- `bump`: resolved bump level, or empty when no matching commit exists
+
+## Local Usage
+
+Run the action entrypoint directly:
+
+```sh
+just local-test
+```
+
+Functional tests:
+
+```sh
+just functional-test
+```
+
+The functional tests cover:
+
+- direct pushes with patch, minor, and breaking-change indicators
+- squash/rebase PR subjects
+- default merge-commit subjects that should not match
+- case-insensitive prefix matching
+- scoped commit types
+- `!` and `BREAKING CHANGE:` breaking-change markers
+- mixed commit lists where the highest bump level should win
+
+Unit tests:
+
+```sh
+just unit-test
+```
+
+Example JSON output:
+
+```json
+{"currentVersion":"0.14.0","version":"0.14.1","createNewTag":"true","createNewRelease":"true","bump":"patch"}
+```
+
+`createNewTag` decides whether the workflow should create a semver tag.
+`createNewRelease` decides whether the workflow should run full release work for the resolved bump level.

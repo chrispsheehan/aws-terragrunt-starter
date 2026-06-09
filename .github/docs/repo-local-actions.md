@@ -50,7 +50,7 @@ If unsure, the live `aws/oidc` stack in the target environment is the source of 
 
 ## Release Tagging Checks
 
-- `release.yml` uses `chrispsheehan/get-release-version`; keep configured commit prefixes aligned with the team's commit convention.
+- `release.yml` and `pull_request.yml` use `./.github/actions/get-release-version`; keep configured commit prefixes aligned with the team's commit convention.
 - If allowed PR title prefixes change, update `pull_request.yml` in the same change so the PR gate matches release bump inputs.
 - Ensure the release job still reads plain semver tags from repo history in the same format it creates.
 

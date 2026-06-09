@@ -1,0 +1,57 @@
+name: "Get Next Version"
+description: "Compute the next semver tag from commit subject prefixes since the latest semver tag"
+
+inputs:
+  subjects:
+    description: "Optional newline-delimited commit subjects to classify instead of reading git history"
+    required: false
+    default: ""
+  major_prefixes:
+    description: "Comma-separated commit subject prefixes that trigger a major bump"
+    required: false
+    default: ""
+  minor_prefixes:
+    description: "Comma-separated commit subject prefixes that trigger a minor bump"
+    required: false
+    default: "feat"
+  patch_prefixes:
+    description: "Comma-separated commit subject prefixes that trigger a patch bump"
+    required: false
+    default: "fix"
+  release_bumps:
+    description: "Comma-separated bump levels that create a full release"
+    required: false
+    default: "major,minor,patch"
+  tag_prefix:
+    description: "Optional prefix for semver tags, for example v for tags like v1.2.3"
+    required: false
+    default: ""
+
+outputs:
+  version:
+    description: "Next semver tag when a matching commit exists, otherwise the current tag"
+  createNewTag:
+    description: "Whether a new semver tag should be created"
+  createNewRelease:
+    description: "Whether the resolved bump level should create a full release"
+  currentVersion:
+    description: "Latest semver tag discovered on the current branch, or 0.0.1 with the configured prefix if none exists"
+  bump:
+    description: "Resolved bump level: major, minor, patch, or empty when no matching commit exists"
+
+runs:
+  using: "docker"
+  image: "Dockerfile"
+  args:
+    - --subjects
+    - ${{ inputs.subjects }}
+    - --major-prefixes
+    - ${{ inputs.major_prefixes }}
+    - --minor-prefixes
+    - ${{ inputs.minor_prefixes }}
+    - --patch-prefixes
+    - ${{ inputs.patch_prefixes }}
+    - --release-bumps
+    - ${{ inputs.release_bumps }}
+    - --tag-prefix
+    - ${{ inputs.tag_prefix }}
