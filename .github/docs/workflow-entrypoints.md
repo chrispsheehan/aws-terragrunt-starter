@@ -10,7 +10,7 @@ Use this when deciding which workflow a user should trigger or when changing env
 | `dev_infra_plan.yml` | Plans the ordered dev infra graph through `shared_infra_plan.yml`. |
 | `dev_infra_plan_and_apply.yml` | Captures the current run as plan context, plans the ordered dev infra graph so metadata and per-stack plan artifacts are emitted, then reapplies the same graph through `shared_infra_apply_from_plan.yml`. |
 | `dev_infra_apply_from_plan.yml` | Reapplies the ordered dev infra graph from plan artifacts created by an earlier dev plan run, using `plan_artifact_run_id` end to end. |
-| `dev_code_deploy.yml` | Discovers directories, builds fresh dev artifacts, resolves deploy inputs, and deploys code to dev. |
+| `dev_code_deploy.yml` | Builds fresh dev artifacts, resolves deploy inputs, and deploys code to dev. |
 | `prod_infra_plan.yml` | Resolves released artifacts from `ci`, then plans the ordered prod infra graph and emits metadata plus per-stack plan artifacts. |
 | `prod_infra_apply_no_plan.yml` | Resolves released artifacts from `ci` and applies prod infrastructure. |
 | `prod_infra_apply_from_plan.yml` | Reapplies the ordered prod infra graph from a prior `prod_infra_plan` run. The shared apply-from-plan wrapper reads metadata first, then each apply job downloads its matching per-stack artifact before invoking `apply_plan`. |

@@ -4,10 +4,9 @@ Lambda source directories for this boilerplate.
 
 ## Structure
 
-- `deploy.yml` is the Lambda build/deploy manifest
-- each entry in `deploy.yml` maps a Lambda source directory to a live Terragrunt stack path template
+- `migrations/` is the fixed Lambda source directory used by CI
 - the generated `lambdas/build` directory is build output only and is intentionally excluded from Lambda discovery
-- a deployable Lambda also needs the live Terragrunt stack declared by its manifest `stack` value
+- the deployable Lambda also needs `infra/live/<environment>/aws/migrations`
 
 ## Common Shape
 
@@ -17,17 +16,14 @@ Lambda source directories for this boilerplate.
 
 ## Build Behavior
 
-- Lambda discovery reads `lambdas/deploy.yml`
-- `stack` is a repo-relative Terragrunt stack path template and must use `{environment}` for the environment segment, for example `infra/live/{environment}/aws/migrations`
-- `source_dir` is the repo-relative source directory to package, for example `lambdas/migrations`
-- the zip artifact name is computed from `basename(source_dir)`, so `lambdas/migrations` publishes `lambdas/<version>/migrations.zip`
-- build workflows deduplicate by `source_dir`; deploy workflows keep every manifest entry so the same source can roll out to multiple Lambda stacks
-- wrapper workflows do not pass Lambda matrices; update this manifest to add, remove, or remap deployed Lambdas
-- `after_deploy: invoke` can be set on a manifest entry when the deployed Lambda should be invoked after CodeDeploy completes
+- CI builds `lambdas/migrations` directly
+- the zip artifact is published as `lambdas/<version>/migrations.zip`
+- deploy workflows roll the artifact out to `infra/live/<environment>/aws/migrations`
+- the migrations Lambda is invoked after CodeDeploy completes
 - the Lambda build flow installs `requirements.txt` into a per-Lambda build directory
 - it copies Python source files into the zip artifact
 - markdown files in Lambda source trees are documentation only and are pruned before the zip artifact is created
-- manifest detection alone is not enough: the runtime still needs the declared Terragrunt stack to participate in infra apply and code rollout correctly
+- runtime shape validation expects both `lambdas/migrations` and the dev/prod `migrations` live stacks
 
 ## Boilerplate Patterns
 

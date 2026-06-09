@@ -34,4 +34,4 @@ jobs:
       lambda_version: ${{ needs.get_build.outputs.lambda_version }}
       ecs_version: ${{ needs.get_build.outputs.ecs_version }}
       code_bucket: ${{ needs.get_build.outputs.code_bucket }}
-      repository_url: ${{ needs.get_build.outputs.repository_url }}
+      ecr_repository_url: ${{ needs.get_build.outputs.ecr_repository_url }}

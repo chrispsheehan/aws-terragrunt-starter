@@ -22,9 +22,9 @@ Infrastructure apply and feature-code rollout are intentionally decoupled in thi
 Deploy workflows:
 
 - publish Lambda versions and use Lambda CodeDeploy
-- optionally invoke the `migrations` Lambda when it is part of the Lambda deploy matrix
-- register ECS task revisions
-- then use native ECS rolling updates for ECS services
+- invoke the `migrations` Lambda after CodeDeploy completes
+- register the `worker` ECS task revision with `worker` and `debug` image URIs
+- then use native ECS rolling updates for `service_worker`
 - ECS task rollout is not implicitly blocked on Lambda or migration jobs; add that ordering only where a caller actually needs it
 
 ## Runtime Overview

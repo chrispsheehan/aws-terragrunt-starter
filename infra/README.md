@@ -106,8 +106,8 @@ Lambda versions and ECS task revisions into that shape.
 
 - Lambda deploys use CodeDeploy with all-at-once traffic shifting.
 - ECS deploys use the native ECS rolling deployment controller.
-- Lambda deploy records come from `lambdas/deploy.yml`.
-- ECS deploy records come from `containers/deploy.yml`.
+- Lambda code deploy is wired directly from `lambdas/migrations` to `migrations`.
+- ECS code deploy is wired directly from `containers/worker` to `task_worker`, then `service_worker`.
 
 Do not apply a saved plan that captured Terragrunt dependency mocks. For first
 deploys, apply upstream stacks first, then re-plan downstream consumers so real
@@ -168,7 +168,6 @@ Examples:
 
 ```sh
 just tg-all dev plan
-just --justfile justfile.ci lambda-get-deploy-matrix
 just --justfile justfile.deploy lambda-build
 ```
 
@@ -181,5 +180,6 @@ just --justfile justfile.deploy lambda-build
 - concrete Lambda stack names such as `migrations`
   Lambda stacks
 
-Wrapper workflows should not pass Lambda or ECS matrices directly. Update
-`lambdas/deploy.yml` or `containers/deploy.yml` instead.
+Wrapper workflows should not pass Lambda or ECS matrices directly. Add explicit
+workflow jobs and update the runtime docs if this repo grows beyond the current
+`migrations` Lambda and `worker` ECS service shape.

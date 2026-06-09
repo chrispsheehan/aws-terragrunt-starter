@@ -22,16 +22,14 @@ service.
 
 - Lambda deploys use CodeDeploy all-at-once.
 - ECS deploys use native ECS rolling deployments.
-- Lambda deploy targets are declared in `lambdas/deploy.yml`.
-- ECS deploy targets are declared in `containers/deploy.yml`.
+- Lambda deploys are wired directly from `lambdas/migrations` to `infra/live/<environment>/aws/migrations`.
+- ECS deploys are wired directly from `containers/worker` to `task_worker`, then `service_worker`.
 
 ## Useful Commands
 
 ```sh
 just --list
 just tg-all dev plan
-just --justfile justfile.ci lambda-get-deploy-matrix
-just --justfile justfile.ci ecs-get-deploy-matrix
 ```
 
 ## Docs

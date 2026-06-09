@@ -1,34 +1,30 @@
-# Discovery And Matrices
+# Discovery And Runtime Links
 
-Use this when changing runtime manifests, repo-local action discovery, or Terragrunt graph waves.
+Use this when changing fixed runtime links, repo-local action discovery, or Terragrunt graph waves.
 
 ## Directory Discovery
 
 `shared_directories_get.yml` derives repo-local action matrices used by PR action-test discovery.
 
-Lambda discovery is manifest-based:
+Lambda deployment is fixed-shape:
 
-- `lambdas/deploy.yml` is the source of truth for Lambda build and deploy records.
-- `shared_build.yml` derives unique Lambda source records from the manifest when it runs.
-- `shared_deploy.yml` derives every Lambda deploy record from the manifest when it runs.
-- wrapper workflows do not pass Lambda matrices; changing the Lambda deployment set is a `lambdas/deploy.yml` change.
-- `stack` values are repo-relative Terragrunt stack path templates such as `infra/live/{environment}/aws/lambda_api`.
-- `source_dir` values are repo-relative source paths; the artifact filename is computed from `basename(source_dir)`.
+- `shared_build.yml` builds `lambdas/migrations` directly.
+- the Lambda artifact key is `lambdas/<version>/migrations.zip`.
+- `shared_deploy.yml` rolls that artifact out to `infra/live/<environment>/aws/migrations`.
+- the migrations Lambda is invoked after CodeDeploy completes.
 
-ECS discovery is manifest-based:
+ECS deployment is fixed-shape:
 
-- `containers/deploy.yml` is the source of truth for ECS image build and service deploy records.
-- `shared_build.yml` derives unique ECS image records from the manifest when it runs.
-- `shared_deploy.yml` derives every ECS service deploy record from the manifest when it runs.
-- wrapper workflows do not pass ECS or task matrices; changing the ECS deployment set is a `containers/deploy.yml` change.
-- `task_stack` and `service_stack` values are repo-relative Terragrunt stack path templates such as `infra/live/{environment}/aws/task_api`.
-- `image` is the ECR tag prefix and maps to the default Docker service source directory `containers/<image>`.
-- `support_images` lists shared images such as `debug` that are built with ECS images because task definitions require them.
+- `shared_build.yml` builds `worker` and `debug` images directly.
+- `worker` maps to `containers/worker`.
+- `debug` is the support image built from the root `Dockerfile` `debug` target.
+- `shared_deploy.yml` applies `infra/live/<environment>/aws/task_worker`, then rolls `infra/live/<environment>/aws/service_worker`.
 
 Top-level runtime discovery rules:
 
-- Lambda deployability is declared in `lambdas/deploy.yml`; top-level Lambda directories are not deploy targets unless the manifest references them
-- ECS deployability is declared in `containers/deploy.yml`; top-level container directories are not deploy targets unless the manifest references them
+- `lambdas/migrations` is the only Lambda deploy source.
+- `containers/worker` is the only service image source.
+- adding another runtime requires adding explicit CI jobs and live stack links.
 
 ## Module Discovery
 
@@ -63,7 +59,7 @@ Each wave contains only modules whose direct dependencies were satisfied by earl
 
 ## Runtime Coverage Checks
 
-- If Lambda manifest entries change, confirm each `stack` path exists for every deployed environment and each `source_dir` still builds.
-- If ECS manifest entries change, confirm each `task_stack` and `service_stack` path exists for every deployed environment and each `image` source still builds.
+- If Lambda runtime links change, confirm the source path exists, the artifact key is updated, and each live stack path exists for every deployed environment.
+- If ECS runtime links change, confirm each image source/target exists and each task/service stack path exists for every deployed environment.
 - For `*_code` wrappers, confirm dispatch inputs cover every runtime being deployed.
 - If ECS deploys are included, confirm `ecs_version` is exposed or intentionally derived.

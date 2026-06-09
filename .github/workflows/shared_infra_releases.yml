@@ -15,9 +15,9 @@ on:
       code_bucket:
         description: "Bucket containing build artifacts"
         value: ${{ jobs.bucket.outputs.bucket_name }}
-      repository_url:
+      ecr_repository_url:
         description: "ECR repository url"
-        value: ${{ jobs.ecr.outputs.repository_url }}
+        value: ${{ jobs.ecr.outputs.ecr_repository_url }}
 
 concurrency: # only run one instance of workflow at any one time
   group: ${{ github.workflow }}-${{ inputs.environment }}
@@ -36,7 +36,7 @@ jobs:
     name: ECR
     runs-on: ubuntu-latest
     outputs:
-      repository_url: ${{ steps.get_repository_url.outputs.repository_url }}
+      ecr_repository_url: ${{ steps.get_ecr_repository_url.outputs.ecr_repository_url }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -54,11 +54,11 @@ jobs:
           tg_directory: infra/live/${{ inputs.environment }}/aws/ecr
 
       - name: Get ECR repository url
-        id: get_repository_url
+        id: get_ecr_repository_url
         env:
           TG_OUTPUTS: ${{ steps.deploy_ecr.outputs.tg_outputs }}
         run: |
-          echo "repository_url=$(echo "$TG_OUTPUTS" | jq -r '.repository_url.value')" >> "$GITHUB_OUTPUT"
+          echo "ecr_repository_url=$(echo "$TG_OUTPUTS" | jq -r '.repository_url.value')" >> "$GITHUB_OUTPUT"
 
   bucket:
     name: Code Bucket
@@ -82,13 +82,6 @@ jobs:
           justfile_path: justfile.ci
           just_action: code-bucket-get-lambda-artifact-dir
 
-      - name: Read frontend artifact dir
-        id: frontend_artifact_dir
-        uses: ./.github/actions/just
-        with:
-          justfile_path: justfile.ci
-          just_action: code-bucket-get-frontend-artifact-dir
-
       - name: Read AppSpec artifact dir
         id: appspec_artifact_dir
         uses: ./.github/actions/just
@@ -101,7 +94,6 @@ jobs:
         uses: ./.github/actions/terragrunt
         env:
           TF_VAR_lambda_artifact_dir: ${{ steps.lambda_artifact_dir.outputs.just_outputs }}
-          TF_VAR_frontend_artifact_dir: ${{ steps.frontend_artifact_dir.outputs.just_outputs }}
           TF_VAR_appspec_artifact_dir: ${{ steps.appspec_artifact_dir.outputs.just_outputs }}
         with:
           tg_directory: infra/live/${{ inputs.environment }}/aws/code_bucket

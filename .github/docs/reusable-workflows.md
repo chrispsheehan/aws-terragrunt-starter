@@ -21,9 +21,8 @@ Use this when editing shared workflows under `.github/workflows/shared_*.yml` or
 - Its `check` job normally runs `.github/actions/get-changes` using the PR base SHA for a PR-style `base...HEAD` diff.
 - Manual `workflow_dispatch` runs force every change flag on and rerun the full validation surface without a PR diff.
 - When `.github/actions/**` changed, it reuses `shared_directories_get.yml` to discover action directories with `Dockerfile`s and runs a Docker unit-test matrix after GitHub formatting.
-- Lambda manifest validation only runs when Lambda sources changed, and checks both the deploy manifest and matching live stack paths.
-- ECS manifest validation runs when container sources or Terragrunt live-stack directories changed, and checks both the deploy manifest and task/service stack pairs.
-- Lambda and ECS manifest validation are explicit prerequisites for the corresponding build jobs.
+- Lambda source changes build the fixed `migrations` Lambda directly.
+- ECS source changes build the fixed `worker` and `debug` images directly.
 - Terragrunt installation uses `jdx/mise-action@v4`.
 - TFLint setup uses the Node 24 `terraform-linters/setup-tflint@v6` line.
 
@@ -40,21 +39,21 @@ The version action is maintained outside this repository.
 
 `shared_build.yml` builds and publishes Lambda, and ECS artifacts.
 
-- Lambda builds are derived internally from `lambdas/deploy.yml`; callers do not pass a Lambda matrix.
-- ECS image builds are derived internally from `containers/deploy.yml`; callers do not pass an ECS/container matrix.
+- Lambda builds upload `lambdas/migrations` as `migrations.zip`.
+- ECS image builds push `worker` and `debug` tags for the requested `ecs_version`.
 
 `shared_build_get.yml` resolves artifact locations used by downstream deploy wrappers.
 
 - Its multi-step `images` and `lambdas` jobs configure AWS credentials once.
 - Repeated `just` calls reuse that ambient session against the same account.
-- Prod deploy resolution checks the computed Lambda zip keys from `lambdas/deploy.yml` exist in the shared code bucket.
-- Prod deploy resolution checks the computed ECS image tags from `containers/deploy.yml` exist in ECR.
+- Prod deploy resolution checks `lambdas/<version>/migrations.zip` exists in the shared code bucket.
+- Prod deploy resolution checks `worker-<version>` and `debug-<version>` exist in ECR.
 
 ```mermaid
 flowchart LR
   call["Workflow Call"] --> prep["Prepare / Read Shared Artifacts"]
   prep --> build["Build Runtime Artifacts"]
-  build --> resolve["Resolve Matrices + References"]
+  build --> resolve["Resolve Fixed References"]
 ```
 
 ## Shared Infra Wrappers
@@ -88,13 +87,11 @@ Current infra selection comes from the Terragrunt dependency graph and derived w
 
 `shared_deploy.yml` rolls out feature code.
 
-- Its `Summary` job derives Lambda and ECS deploy matrices, writes a code deploy step summary, and exposes matrix outputs to downstream rollout jobs.
-- Publishes Lambda versions.
-- Derives Lambda deploy records internally from `lambdas/deploy.yml`; callers do not pass a Lambda matrix.
-- Optionally invokes Lambdas whose deploy manifest entry sets `after_deploy: invoke`.
-- Derives ECS deploy records internally from `containers/deploy.yml`; callers do not pass an ECS task matrix.
-- Registers ECS task revisions.
-- Updates ECS services.
+- Its `Summary` job writes the fixed code deploy target summary.
+- Publishes the `migrations` Lambda version.
+- Invokes the `migrations` Lambda after CodeDeploy completes.
+- Applies the `task_worker` stack with `worker` and `debug` image URIs.
+- Updates the `service_worker` ECS service.
 - Configures AWS credentials once at job start and lets local `just` and Terragrunt actions reuse that ambient session.
 - Renders Lambda CodeDeploy AppSpec files from shared templates under `config/deploy/`.
 - Mutating `just` steps should target `justfile.deploy` rather than the repo-root `justfile`.

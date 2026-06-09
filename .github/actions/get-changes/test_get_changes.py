@@ -94,8 +94,9 @@ class GetChangesTests(unittest.TestCase):
             git(repo, "commit", "-m", "chore: init")
             base_sha = git(repo, "rev-parse", "HEAD").stdout.strip()
             git(repo, "checkout", "-b", "feature")
+            target = repo / ".github" / "workflows"
             target.mkdir(parents=True)
-            (target / "App.jsx").write_text("export default null\n", encoding="utf-8")
+            (target / "example.yml").write_text("name: Example\n", encoding="utf-8")
             git(repo, "add", ".")
 
             result = subprocess.run(

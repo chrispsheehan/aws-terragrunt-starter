@@ -4,9 +4,9 @@ Container source directories for this boilerplate.
 
 ## Structure
 
-- `deploy.yml` is the ECS image build/service deploy manifest
-- each deployable service lives in its own top-level directory such as `worker/`
-- a deployable ECS runtime also needs the live Terragrunt task and service stacks declared by its manifest entry
+- `worker/` is the fixed ECS service source directory used by CI
+- the `debug` image is built from the root `Dockerfile` `debug` target as a support image
+- the deployable ECS runtime also needs `task_worker` and `service_worker` live Terragrunt stacks
 
 ## Common Shape
 
@@ -16,15 +16,13 @@ Container source directories for this boilerplate.
 
 ## Build Behavior
 
-- ECS discovery reads `containers/deploy.yml`
-- `task_stack` and `service_stack` are repo-relative Terragrunt stack path templates and must use `{environment}` for the environment segment, for example `infra/live/{environment}/aws/task_worker`
-- `image` is the ECR image tag prefix and maps to the default source directory `containers/<image>`
-- build workflows deduplicate by `image`; deploy workflows keep every manifest entry so the same image can roll out to multiple ECS services
-- wrapper workflows do not pass ECS or task matrices; update this manifest to add, remove, or remap deployed ECS services
-- `support_images` lists shared images such as `debug` that are built alongside service images because task definitions require them
+- CI builds `worker` and `debug` images directly
+- the `worker` image maps to `containers/worker`
+- the `debug` image is built alongside `worker` because task definitions can include the debug sidecar
+- deploy workflows apply `infra/live/<environment>/aws/task_worker`, then roll `infra/live/<environment>/aws/service_worker`
 - container images copy only the files referenced by the Dockerfile for the selected service shape
 - markdown files in `containers/` are documentation only and are not included in container image artifacts
-- manifest detection alone is not enough: the runtime still needs the declared Terragrunt task and service stacks
+- runtime shape validation expects `containers/worker` and the dev/prod `task_worker` / `service_worker` live stacks
 - local Docker scaffolding is not currently included in this repo
 
 ## Boilerplate Patterns
