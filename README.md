@@ -32,6 +32,24 @@ just --list
 just tg-all dev plan
 ```
 
+## Initial OIDC Bootstrap
+
+Run these once from a local shell that already has AWS credentials capable of
+managing IAM. These create the GitHub Actions deploy roles that later workflows
+assume with OIDC:
+
+```sh
+export AWS_PROFILE=default
+export AWS_REGION=eu-west-2
+
+just tg ci aws/oidc apply
+just tg dev aws/oidc apply
+just tg prod aws/oidc apply
+```
+
+The AWS account must already have the GitHub OIDC provider for
+`https://token.actions.githubusercontent.com`.
+
 ## Docs
 
 - Infra layout: [infra/README.md](infra/README.md)
