@@ -260,72 +260,14 @@ jobs:
           just_action: tg-waves-to-destroy-waves
 
       - name: Validate static wave jobs
-        shell: bash
+        uses: ./.github/actions/just
         env:
           RAW_WAVES_JSON: ${{ steps.waves.outputs.just_outputs }}
           INFRA_WAVES_JSON: ${{ steps.infra_waves.outputs.just_outputs }}
           DESTROY_WAVES_JSON: ${{ steps.destroy_waves.outputs.just_outputs }}
-        run: |
-          set -euo pipefail
-
-          raw_waves_json="$(jq -c . <<<"$RAW_WAVES_JSON")"
-          infra_waves_json="$(jq -c . <<<"$INFRA_WAVES_JSON")"
-          destroy_waves_json="$(jq -c . <<<"$DESTROY_WAVES_JSON")"
-
-          indexes_for_waves() {
-            jq -c 'length as $n | [range(0; $n)]' <<<"$1"
-          }
-
-          indexes_for_workflow() {
-            grep -E '^  wave_[0-9]+:' "$1" \
-              | sed -E 's/^  wave_([0-9]+):.*/\1/' \
-              | sort -n \
-              | jq -Rsc 'split("\n") | map(select(length > 0) | tonumber)'
-          }
-
-          validate_workflow() {
-            local label="$1"
-            local workflow="$2"
-            local waves_json="$3"
-            local expected actual missing extra
-
-            expected="$(indexes_for_waves "$waves_json")"
-            actual="$(indexes_for_workflow "$workflow")"
-            missing="$(jq -cn --argjson expected "$expected" --argjson actual "$actual" '$expected - $actual')"
-            extra="$(jq -cn --argjson expected "$expected" --argjson actual "$actual" '$actual - $expected')"
-
-            echo "$label expected wave jobs: $expected"
-            echo "$label actual wave jobs:   $actual"
-
-            if [[ "$actual" != "$expected" ]]; then
-              {
-                echo "::error file=$workflow,title=Terragrunt wave jobs out of date::$label static wave jobs do not match the generated Terragrunt graph."
-                echo "Expected contiguous jobs: $expected"
-                echo "Actual static jobs:       $actual"
-                echo "Missing job indexes:      $missing"
-                echo "Extra job indexes:        $extra"
-                echo
-                echo "Fix $workflow so its top-level wave_N jobs exactly match $expected."
-                if [[ "$extra" != "[]" ]]; then
-                  echo "Remove stale wave job(s): $(jq -r 'map("wave_" + tostring) | join(", ")' <<<"$extra")"
-                fi
-                if [[ "$missing" != "[]" ]]; then
-                  echo "Add missing wave job(s): $(jq -r 'map("wave_" + tostring) | join(", ")' <<<"$missing")"
-                fi
-                echo "Regenerate/check locally with: AWS_ACCOUNT_ID=<account> just tg-graph-waves dev"
-              } >&2
-              exit 1
-            fi
-          }
-
-          echo "Raw dev waves: $raw_waves_json"
-          echo "Infra plan/apply waves: $infra_waves_json"
-          echo "Destroy waves: $destroy_waves_json"
-
-          validate_workflow "Shared infra plan" ".github/workflows/shared_infra_plan.yml" "$infra_waves_json"
-          validate_workflow "Shared infra apply" ".github/workflows/shared_infra_apply_no_plan.yml" "$infra_waves_json"
-          validate_workflow "Shared infra apply from plan" ".github/workflows/shared_infra_apply_from_plan.yml" "$infra_waves_json"
-          validate_workflow "Destroy" ".github/workflows/destroy.yml" "$destroy_waves_json"
+        with:
+          justfile_path: justfile.ci
+          just_action: tg-validate-static-wave-jobs
 
   lint-terraform:
     needs: check
