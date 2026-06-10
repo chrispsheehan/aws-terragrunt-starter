@@ -21,6 +21,12 @@ stacks, the target AWS account and region must already contain:
 The default `vpc_name` is `vpc`. Update `infra/live/global_vars.hcl` if your
 pre-existing VPC uses a different `Name` tag.
 
+Check the prerequisite from your local shell:
+
+```sh
+just check-network vpc
+```
+
 ## Terragrunt State
 
 State is stored under:

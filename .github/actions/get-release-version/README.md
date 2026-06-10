@@ -100,10 +100,6 @@ jobs:
         uses: ./.github/actions/get-release-version
         with:
           subjects: ${{ github.event.pull_request.title }}
-          major_prefixes: breaking,feat,!feat
-          minor_prefixes: minor,fix,patch
-          patch_prefixes: chore,docs
-          release_bumps: major,minor
 
       - name: Show preview
         run: |
