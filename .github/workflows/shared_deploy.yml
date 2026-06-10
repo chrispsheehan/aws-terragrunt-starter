@@ -121,7 +121,7 @@ jobs:
           FUNCTION_NAME: ${{ steps.get_infra_detail.outputs.lambda_function_name }}
           LAMBDA_ZIP_KEY: ${{ steps.lambda_paths.outputs.lambda_zip_key }}
         with:
-          justfile_path: scripts/deploy.justfile
+          justfile_path: scripts/deploy/justfile
           just_action: lambda-create-version
 
       - name: Get current lambda version
@@ -131,7 +131,7 @@ jobs:
           FUNCTION_NAME: ${{ steps.get_infra_detail.outputs.lambda_function_name }}
           ALIAS_NAME: ${{ steps.get_infra_detail.outputs.lambda_alias_name }}
         with:
-          justfile_path: scripts/deploy.justfile
+          justfile_path: scripts/deploy/justfile
           just_action: lambda-get-version
 
       - name: Run CodeDeploy
@@ -146,7 +146,7 @@ jobs:
           APP_SPEC_FILE: ${{ github.workspace }}/lambdas/appspec-lambda.rendered.yml
           APP_SPEC_KEY: ${{ steps.lambda_paths.outputs.lambda_appspec_key }}
         with:
-          justfile_path: scripts/deploy.justfile
+          justfile_path: scripts/deploy/justfile
           just_action: lambda-upload-bundle lambda-deploy lambda-prune
 
   invoke-migrations:
@@ -167,7 +167,7 @@ jobs:
         env:
           LAMBDA_NAME: ${{ needs.lambda-migrations.outputs.lambda_function_name }}
         with:
-          justfile_path: scripts/deploy.justfile
+          justfile_path: scripts/deploy/justfile
           just_action: lambda-invoke
 
   task-worker:
@@ -254,5 +254,5 @@ jobs:
           SERVICE_NAME: ${{ steps.get-service-outputs.outputs.service_name }}
           TASK_DEFINITION_ARN: ${{ steps.get-task-outputs.outputs.task_definition_arn }}
         with:
-          justfile_path: scripts/deploy.justfile
+          justfile_path: scripts/deploy/justfile
           just_action: ecs-rolling-deploy

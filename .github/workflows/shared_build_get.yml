@@ -140,7 +140,7 @@ jobs:
           ECR_REPOSITORY_URL: ${{ needs.ecr.outputs.ecr_repository_url }}
           VERSION: ${{ inputs.ecs_version != '' && inputs.ecs_version || inputs.lambda_version }}
         with:
-          justfile_path: scripts/ci.justfile
+          justfile_path: scripts/ci/justfile
           just_action: ecs-check-deploy-images
 
   lambdas:
@@ -164,7 +164,7 @@ jobs:
           BUCKET_NAME: ${{ needs.bucket.outputs.code_bucket_name }}
           VERSION: ${{ inputs.lambda_version }}
         with:
-          justfile_path: scripts/ci.justfile
+          justfile_path: scripts/ci/justfile
           just_action: lambda-check-version
 
       - name: Check Lambda deploy artifacts exist
@@ -173,5 +173,5 @@ jobs:
           BUCKET_NAME: ${{ needs.bucket.outputs.code_bucket_name }}
           VERSION: ${{ inputs.lambda_version }}
         with:
-          justfile_path: scripts/ci.justfile
+          justfile_path: scripts/ci/justfile
           just_action: lambda-check-deploy-artifacts

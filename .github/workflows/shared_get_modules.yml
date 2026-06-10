@@ -111,7 +111,7 @@ jobs:
         env:
           TG_GRAPH_OUTPUT: ${{ steps.tg_graph.outputs.tg_graph_output }}
         with:
-          justfile_path: scripts/ci.justfile
+          justfile_path: scripts/ci/justfile
           just_action: tg-graph-output-to-json ${{ inputs.environment }}
 
       - name: Build wave matrix JSON
@@ -120,7 +120,7 @@ jobs:
         env:
           TG_GRAPH_JSON: ${{ steps.tg_graph_json.outputs.just_outputs }}
         with:
-          justfile_path: scripts/ci.justfile
+          justfile_path: scripts/ci/justfile
           just_action: tg-graph-json-to-waves
 
       - name: Optionally exclude task modules from wave matrix

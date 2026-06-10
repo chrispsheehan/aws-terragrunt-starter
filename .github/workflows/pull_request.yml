@@ -243,7 +243,7 @@ jobs:
         env:
           RAW_WAVES_JSON: ${{ steps.waves.outputs.just_outputs }}
         with:
-          justfile_path: scripts/ci.justfile
+          justfile_path: scripts/ci/justfile
           just_action: tg-waves-to-infra-waves
 
       - name: Build destroy wave JSON
@@ -252,7 +252,7 @@ jobs:
         env:
           RAW_WAVES_JSON: ${{ steps.waves.outputs.just_outputs }}
         with:
-          justfile_path: scripts/ci.justfile
+          justfile_path: scripts/ci/justfile
           just_action: tg-waves-to-destroy-waves
 
       - name: Validate static wave jobs
@@ -262,7 +262,7 @@ jobs:
           INFRA_WAVES_JSON: ${{ steps.infra_waves.outputs.just_outputs }}
           DESTROY_WAVES_JSON: ${{ steps.destroy_waves.outputs.just_outputs }}
         with:
-          justfile_path: scripts/ci.justfile
+          justfile_path: scripts/ci/justfile
           just_action: tg-validate-static-wave-jobs
 
   lint-terraform:
@@ -281,7 +281,7 @@ jobs:
       - name: "Run terraform lint checks"
         uses: ./.github/actions/just
         with:
-          justfile_path: scripts/ci.justfile
+          justfile_path: scripts/ci/justfile
           just_action: tf-lint-check
 
   build-lambdas:
@@ -299,7 +299,7 @@ jobs:
           LAMBDA_SOURCE_DIR: lambdas/migrations
           LAMBDA_ARTIFACT_NAME: migrations
         with:
-          justfile_path: scripts/deploy.justfile
+          justfile_path: scripts/deploy/justfile
           just_action: lambda-build
 
   build-worker-container:
@@ -316,7 +316,7 @@ jobs:
         env:
           CONTAINER_NAME: worker
         with:
-          justfile_path: scripts/deploy.justfile
+          justfile_path: scripts/deploy/justfile
           just_action: docker-build
 
   build-debug-container:
@@ -333,5 +333,5 @@ jobs:
         env:
           CONTAINER_NAME: debug
         with:
-          justfile_path: scripts/deploy.justfile
+          justfile_path: scripts/deploy/justfile
           just_action: docker-build

@@ -19,5 +19,5 @@ jobs:
         id: action_dirs
         uses: ./.github/actions/just
         with:
-          justfile_path: scripts/ci.justfile
+          justfile_path: scripts/ci/justfile
           just_action: action-get-directories

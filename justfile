@@ -1,12 +1,12 @@
 # List root recipes plus split CI/deploy recipe files.
 _default:
     @just --list
-    @printf '\nCI recipes (`just --justfile scripts/ci.justfile --list`):\n'
-    @just --justfile scripts/ci.justfile --list
-    @printf '\nDeploy recipes (`just --justfile scripts/deploy.justfile --list`):\n'
-    @just --justfile scripts/deploy.justfile --list
-    @printf '\nDestroy recipes (`just --justfile scripts/destroy.justfile --list`):\n'
-    @just --justfile scripts/destroy.justfile --list
+    @printf '\nCI recipes (`just --justfile scripts/ci/justfile --list`):\n'
+    @just --justfile scripts/ci/justfile --list
+    @printf '\nDeploy recipes (`just --justfile scripts/deploy/justfile --list`):\n'
+    @just --justfile scripts/deploy/justfile --list
+    @printf '\nDestroy recipes (`just --justfile scripts/destroy/justfile --list`):\n'
+    @just --justfile scripts/destroy/justfile --list
 
 
 PROJECT_DIR := justfile_directory()
@@ -213,8 +213,8 @@ tg-graph-waves env provider='aws':
 
     tg_graph_json="$(
       TG_GRAPH_OUTPUT="$(just tg-graph "{{env}}" "{{provider}}")" \
-        just --justfile "{{justfile_directory()}}/scripts/ci.justfile" tg-graph-output-to-json "{{env}}" "{{provider}}"
+        just --justfile "{{justfile_directory()}}/scripts/ci/justfile" tg-graph-output-to-json "{{env}}" "{{provider}}"
     )"
 
     TG_GRAPH_JSON="$tg_graph_json" \
-      just --justfile "{{justfile_directory()}}/scripts/ci.justfile" tg-graph-json-to-waves
+      just --justfile "{{justfile_directory()}}/scripts/ci/justfile" tg-graph-json-to-waves
