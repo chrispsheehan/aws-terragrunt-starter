@@ -39,7 +39,7 @@ These instructions apply to the entire repository.
 
 ## CI OIDC Scope
 
-- when changing CI OIDC roles, deploy permissions, artifact permissions, or `infra/live/ci/aws/oidc/terragrunt.hcl`, read `infra/modules/aws/_shared/oidc/README.md` and `.github/docs/reusable-workflows.md` before editing
+- when changing CI OIDC roles, deploy permissions, artifact permissions, or `infra/live/ci/aws/oidc/terragrunt.hcl`, read `infra/modules/aws/_shared/oidc/README.md` and `.github/docs/README.md` before editing
 - treat the CI OIDC role as artifact-scoped unless the user explicitly asks to change that contract
 
 ## Protected Live Stacks
@@ -58,7 +58,7 @@ These instructions apply to the entire repository.
 - for cross-stack output passthroughs, preserve consumer-facing output names and update the nearest module README
 - prefer Terragrunt `dependency` inputs plus `mock_outputs` over `terraform_remote_state`; if remote state is intentional, add a `# remote_state_reason: ...` comment
 - when introducing or expanding bootstrap/mock-output behavior, update the nearest owning human-facing README
-- for detailed checks, read `README.md` and `.github/docs/reusable-workflows.md`
+- for detailed checks, read `README.md` and `.github/docs/README.md`
 
 ## Terragrunt Plan Expectation
 
@@ -68,7 +68,7 @@ These instructions apply to the entire repository.
 - for noisy plans or logs, write command output under ignored `tmp/` and return only filtered summary lines such as `No changes`, `Plan:`, `Error:`, `Failed`, or relevant `WARN`
 - treat saved plans as apply-intent artifacts; do not apply plans that captured bootstrap/mock values
 - if credentials, network, permissions, or state access block planning, say so and name the exact manual plan command
-- for saved-plan and mock-output details, read `infra/readme.md` and `.github/docs/artifacts-and-plans.md`
+- for saved-plan and mock-output details, read `infra/readme.md` and `.github/docs/README.md`
 
 ## High-Signal Edit Warnings
 

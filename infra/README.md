@@ -8,55 +8,19 @@ debugging.
 Infrastructure apply and feature-code rollout are intentionally decoupled in
 this starter.
 
-- infra workflows create or update infrastructure stacks
-- infra workflows create the stable runtime shape, including the Lambda
-  CodeDeploy application and deployment group used later for Lambda rollouts
-- `*_infra` workflows apply infrastructure only
-- build workflows produce Lambda zips and container images
-- `*_code` workflows deploy feature code only
-- code deploy workflows publish the real Lambda versions and ECS task revisions
-  into that pre-created deploy surface
-- `*_infra` wrappers need the inputs required to apply infra safely, such as
-  graph-derived stack waves and bootstrap references
-- in `prod`, the `*_infra` wrappers read shared artifact resources from `ci`
-  but only apply service and task stacks in `prod`
-- saved `plan` / `apply_plan` artifacts live in GitHub Actions artifacts keyed
-  by workflow run id, with one run-level metadata artifact plus one per-stack
-  plan artifact
-- saved plan artifacts are time-limited; the run-level metadata artifact is
-  retained for 14 days, so apply-from-plan must happen before artifact expiry
-- each saved-plan stack always uploads `terragrunt.plan.meta.json`; the binary
-  `terragrunt.tfplan` and rendered `terragrunt.plan.txt` are uploaded only when
-  the plan contains real changes
-- Code artifact retention is configured in the shared code bucket module
-- rerunning infrastructure apply does not roll out new feature code
-- the shared Lambda and ECS module READMEs are the canonical source for
-  bootstrap, rollout, and rollback details for each runtime shape
-- detailed workflow contracts, reusable-workflow inputs, and repo-local action
-  behavior live in [CI docs](../.github/docs/README.md)
-- see [Lambda source layout](../lambdas/README.md) and
-  [container source layout](../containers/README.md) for runtime source layout,
-  build behavior, and boilerplate patterns
-
-Deploy workflows:
-
-- publish Lambda versions and use Lambda CodeDeploy
-- invoke the `migrations` Lambda after CodeDeploy completes
-- register the `worker` ECS task revision with `worker` and `debug` image URIs
-- then use native ECS rolling updates for `service_worker`
-- ECS task rollout is not implicitly blocked on Lambda or migration jobs; add
-  that ordering only where a caller actually needs it
-
-## Runtime Rollout
-
-```mermaid
-flowchart LR
-  deploy["Code Deploy"] --> lambda["Migrations Lambda"]
-  deploy --> task["Worker Task Definition"]
-  lambda --> codedeploy["Lambda CodeDeploy all-at-once"]
-  codedeploy --> invoke["Invoke Migrations"]
-  task --> service["Worker Service rolling deploy"]
-```
+- Infrastructure applies create the stable runtime surface; rerunning
+  infrastructure does not roll out new feature code.
+- Bootstrap applies may use placeholder inputs so runtime stacks can create
+  stable surfaces before the first real Lambda zip or ECS task revision exists.
+- Saved plans are apply-intent artifacts. Do not apply a plan that captured
+  bootstrap placeholders or mocked upstream dependency outputs.
+- GitHub saved-plan artifacts are keyed by workflow run id, with one run-level
+  metadata artifact plus one per-stack plan artifact.
+- Saved plan artifacts are time-limited; apply-from-plan must happen before
+  artifact expiry.
+- Code artifact retention is configured in the shared code bucket module.
+- Detailed workflow contracts, reusable-workflow inputs, and repo-local action
+  behavior live in [CI docs](../.github/docs/README.md).
 
 ## Terragrunt Graph Helpers
 
