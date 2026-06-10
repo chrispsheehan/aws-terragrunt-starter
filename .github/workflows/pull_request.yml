@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PR_TITLE: ${{ github.event.pull_request.title || inputs.pr_title }}
-      ALLOWED_PREFIXES: "feat: feat!: fix: fix!:"
+      ALLOWED_PREFIXES: "feat: feat!: fix: fix!: chore: docs:"
     steps:
       - name: Fail if PR title does not start with an allowed prefix
         run: |
