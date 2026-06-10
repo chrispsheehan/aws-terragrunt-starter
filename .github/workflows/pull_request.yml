@@ -287,16 +287,33 @@ jobs:
             local label="$1"
             local workflow="$2"
             local waves_json="$3"
-            local expected actual
+            local expected actual missing extra
 
             expected="$(indexes_for_waves "$waves_json")"
             actual="$(indexes_for_workflow "$workflow")"
+            missing="$(jq -cn --argjson expected "$expected" --argjson actual "$actual" '$expected - $actual')"
+            extra="$(jq -cn --argjson expected "$expected" --argjson actual "$actual" '$actual - $expected')"
 
             echo "$label expected wave jobs: $expected"
             echo "$label actual wave jobs:   $actual"
 
             if [[ "$actual" != "$expected" ]]; then
-              echo "::error file=$workflow,title=Terragrunt wave jobs out of date::$label has static wave jobs $actual, but generated waves require $expected."
+              {
+                echo "::error file=$workflow,title=Terragrunt wave jobs out of date::$label static wave jobs do not match the generated Terragrunt graph."
+                echo "Expected contiguous jobs: $expected"
+                echo "Actual static jobs:       $actual"
+                echo "Missing job indexes:      $missing"
+                echo "Extra job indexes:        $extra"
+                echo
+                echo "Fix $workflow so its top-level wave_N jobs exactly match $expected."
+                if [[ "$extra" != "[]" ]]; then
+                  echo "Remove stale wave job(s): $(jq -r 'map("wave_" + tostring) | join(", ")' <<<"$extra")"
+                fi
+                if [[ "$missing" != "[]" ]]; then
+                  echo "Add missing wave job(s): $(jq -r 'map("wave_" + tostring) | join(", ")' <<<"$missing")"
+                fi
+                echo "Regenerate/check locally with: AWS_ACCOUNT_ID=<account> just tg-graph-waves dev"
+              } >&2
               exit 1
             fi
           }
