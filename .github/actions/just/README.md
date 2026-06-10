@@ -21,6 +21,7 @@ This GitHub Action sets up [`just`](https://github.com/casey/just) and runs a sp
 | `just_version`     | Version of `just` to install                     | ❌        | `1.49.0`     |
 | `aws_region`       | AWS region                                       | ❌        | `eu-west-2`  |
 | `just_action`      | The `just` recipe to execute                     | ✅        | —            |
+| `justfile_path`    | Optional path to a specific justfile             | ❌        | `""`         |
 | `mask_result`      | Use to mask value in CI                          | ❌        | `false`      |
 
 ---
