@@ -209,6 +209,113 @@ jobs:
         run: terragrunt hclfmt --terragrunt-check
         working-directory: infra
 
+  validate-tg-waves:
+    needs:
+      - check
+      - format-github
+      - format-terragrunt
+    runs-on: ubuntu-latest
+    if: ${{ always() && needs.check.result == 'success' && (needs.check.outputs.github == 'true' || needs.check.outputs.terraform == 'true' || needs.check.outputs.terragrunt == 'true') && (needs.format-github.result == 'success' || needs.format-github.result == 'skipped') && (needs.format-terragrunt.result == 'success' || needs.format-terragrunt.result == 'skipped') }}
+    name: TG Waves
+    timeout-minutes: 5
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      AWS_OIDC_ROLE_ARN: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.PROJECT_NAME }}-dev-github-oidc-role
+      AWS_REGION: ${{ vars.AWS_REGION }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: hashicorp/setup-terraform@v4
+
+      - uses: jdx/mise-action@v4
+        with:
+          tool_versions: |
+            terragrunt 0.45.10
+          github_token: ${{ github.token }}
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ env.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Build dev Terragrunt waves
+        id: waves
+        uses: ./.github/actions/just
+        with:
+          aws_region: ${{ env.AWS_REGION }}
+          just_action: tg-graph-waves dev
+
+      - name: Build infra wave JSON
+        id: infra_waves
+        uses: ./.github/actions/just
+        env:
+          RAW_WAVES_JSON: ${{ steps.waves.outputs.just_outputs }}
+        with:
+          justfile_path: justfile.ci
+          just_action: tg-waves-to-infra-waves
+
+      - name: Build destroy wave JSON
+        id: destroy_waves
+        uses: ./.github/actions/just
+        env:
+          RAW_WAVES_JSON: ${{ steps.waves.outputs.just_outputs }}
+        with:
+          justfile_path: justfile.ci
+          just_action: tg-waves-to-destroy-waves
+
+      - name: Validate static wave jobs
+        shell: bash
+        env:
+          RAW_WAVES_JSON: ${{ steps.waves.outputs.just_outputs }}
+          INFRA_WAVES_JSON: ${{ steps.infra_waves.outputs.just_outputs }}
+          DESTROY_WAVES_JSON: ${{ steps.destroy_waves.outputs.just_outputs }}
+        run: |
+          set -euo pipefail
+
+          raw_waves_json="$(jq -c . <<<"$RAW_WAVES_JSON")"
+          infra_waves_json="$(jq -c . <<<"$INFRA_WAVES_JSON")"
+          destroy_waves_json="$(jq -c . <<<"$DESTROY_WAVES_JSON")"
+
+          indexes_for_waves() {
+            jq -c 'length as $n | [range(0; $n)]' <<<"$1"
+          }
+
+          indexes_for_workflow() {
+            grep -E '^  wave_[0-9]+:' "$1" \
+              | sed -E 's/^  wave_([0-9]+):.*/\1/' \
+              | sort -n \
+              | jq -Rsc 'split("\n") | map(select(length > 0) | tonumber)'
+          }
+
+          validate_workflow() {
+            local label="$1"
+            local workflow="$2"
+            local waves_json="$3"
+            local expected actual
+
+            expected="$(indexes_for_waves "$waves_json")"
+            actual="$(indexes_for_workflow "$workflow")"
+
+            echo "$label expected wave jobs: $expected"
+            echo "$label actual wave jobs:   $actual"
+
+            if [[ "$actual" != "$expected" ]]; then
+              echo "::error file=$workflow,title=Terragrunt wave jobs out of date::$label has static wave jobs $actual, but generated waves require $expected."
+              exit 1
+            fi
+          }
+
+          echo "Raw dev waves: $raw_waves_json"
+          echo "Infra plan/apply waves: $infra_waves_json"
+          echo "Destroy waves: $destroy_waves_json"
+
+          validate_workflow "Shared infra plan" ".github/workflows/shared_infra_plan.yml" "$infra_waves_json"
+          validate_workflow "Shared infra apply" ".github/workflows/shared_infra_apply_no_plan.yml" "$infra_waves_json"
+          validate_workflow "Shared infra apply from plan" ".github/workflows/shared_infra_apply_from_plan.yml" "$infra_waves_json"
+          validate_workflow "Destroy" ".github/workflows/destroy.yml" "$destroy_waves_json"
+
   lint-terraform:
     needs: check
     runs-on: ubuntu-latest

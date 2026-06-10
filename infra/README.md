@@ -39,6 +39,18 @@ To test the wave processor locally through the same split used by CI:
 just tg-graph-waves dev
 ```
 
+To test the infra plan/apply wave filtering used by PR validation:
+
+```sh
+RAW_WAVES_JSON="$(just tg-graph-waves dev)" just --justfile justfile.ci tg-waves-to-infra-waves
+```
+
+To test the destroy wave filtering used by PR validation:
+
+```sh
+RAW_WAVES_JSON="$(just tg-graph-waves dev)" just --justfile justfile.ci tg-waves-to-destroy-waves
+```
+
 If you only need the raw Terragrunt graph output:
 
 ```sh

@@ -132,6 +132,44 @@ tg-graph-json-to-waves:
     ' | jq -c .
 
 
+# Filter raw Terragrunt waves to the infra plan/apply wave shape.
+tg-waves-to-infra-waves:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "{{PROJECT_DIR}}"
+
+    if [[ -z "${RAW_WAVES_JSON:-}" ]]; then
+        echo "❌ RAW_WAVES_JSON is required for tg-waves-to-infra-waves."
+        exit 1
+    fi
+
+    jq -c '
+      map(.modules |= map(select(startswith("task_") | not)))
+      | map(select(.modules | length > 0))
+      | to_entries
+      | map({wave: .key, modules: .value.modules})
+    ' <<<"$RAW_WAVES_JSON"
+
+
+# Filter raw Terragrunt waves to the destroy wave shape.
+tg-waves-to-destroy-waves:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "{{PROJECT_DIR}}"
+
+    if [[ -z "${RAW_WAVES_JSON:-}" ]]; then
+        echo "❌ RAW_WAVES_JSON is required for tg-waves-to-destroy-waves."
+        exit 1
+    fi
+
+    jq -c '
+      map(.modules |= map(select(. != "oidc")))
+      | map(select(.modules | length > 0))
+      | to_entries
+      | map({wave: .key, modules: .value.modules})
+    ' <<<"$RAW_WAVES_JSON"
+
+
 # Filter saved infra-plan waves down to modules whose terragrunt.plan.meta.json
 # reports has_changes=true.
 infra-plan-filter-waves-by-changes:
