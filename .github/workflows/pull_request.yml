@@ -219,11 +219,9 @@ jobs:
     name: TG Waves
     timeout-minutes: 5
     permissions:
-      id-token: write
       contents: read
     env:
       AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
-      AWS_OIDC_ROLE_ARN: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.PROJECT_NAME }}-dev-github-oidc-role
       AWS_REGION: ${{ vars.AWS_REGION }}
     steps:
       - uses: actions/checkout@v6
@@ -235,11 +233,6 @@ jobs:
           tool_versions: |
             terragrunt 0.45.10
           github_token: ${{ github.token }}
-
-      - uses: aws-actions/configure-aws-credentials@v6
-        with:
-          role-to-assume: ${{ env.AWS_OIDC_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
 
       - name: Build dev Terragrunt waves
         id: waves
