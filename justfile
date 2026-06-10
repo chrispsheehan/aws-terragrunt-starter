@@ -102,7 +102,15 @@ check-network vpc_name:
 
     vpc_id="${vpc_ids[0]}"
 
-    subnet_ids_raw="$(
+    public_subnet_ids_raw="$(
+        aws ec2 describe-subnets \
+          --region "$configured_region" \
+          --filters "Name=vpc-id,Values=$vpc_id" "Name=tag:Name,Values=*public*" \
+          --query 'Subnets[].SubnetId' \
+          --output text
+    )"
+
+    private_subnet_ids_raw="$(
         aws ec2 describe-subnets \
           --region "$configured_region" \
           --filters "Name=vpc-id,Values=$vpc_id" "Name=tag:Name,Values=*private*" \
@@ -110,15 +118,22 @@ check-network vpc_name:
           --output text
     )"
 
-    read -r -a subnet_ids <<< "$subnet_ids_raw"
+    read -r -a public_subnet_ids <<< "$public_subnet_ids_raw"
+    read -r -a private_subnet_ids <<< "$private_subnet_ids_raw"
 
-    if [[ "${#subnet_ids[@]}" -eq 0 || -z "${subnet_ids[0]:-}" ]]; then
+    if [[ "${#public_subnet_ids[@]}" -eq 0 || -z "${public_subnet_ids[0]:-}" ]]; then
+        echo "🔴 No public subnets found in $vpc_id with Name tags containing 'public'."
+        exit 1
+    fi
+
+    if [[ "${#private_subnet_ids[@]}" -eq 0 || -z "${private_subnet_ids[0]:-}" ]]; then
         echo "🔴 No private subnets found in $vpc_id with Name tags containing 'private'."
         exit 1
     fi
 
     echo "✅ Found VPC: $vpc_id"
-    echo "✅ Found private subnets: ${subnet_ids[*]}"
+    echo "✅ Found public subnets: ${public_subnet_ids[*]}"
+    echo "✅ Found private subnets: ${private_subnet_ids[*]}"
     echo "✅ AWS network prerequisites are present."
 
 

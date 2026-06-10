@@ -16,6 +16,7 @@ This starter does not create the VPC or subnets. Before applying the runtime
 stacks, the target AWS account and region must already contain:
 
 - a VPC with `Name` tag matching `vpc_name` in `infra/live/global_vars.hcl`
+- public subnets in that VPC with `Name` tags containing `public`
 - private subnets in that VPC with `Name` tags containing `private`
 
 The default `vpc_name` is `vpc`. Update `infra/live/global_vars.hcl` if your
