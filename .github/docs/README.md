@@ -187,10 +187,11 @@ shared-infra wave order.
 - Shares `infra-mutate-<environment>` with mutating apply workflows.
 - Derives current module waves through `shared_get_modules.yml`.
 - Uses filtering inputs to omit `oidc` entirely.
+- Uses filtering inputs to omit `task_*` stacks entirely.
 - Omits `code_bucket` and `ecr` unless `allow_cleanup` is enabled.
 - Writes the shared module-discovery wave summary in reverse order.
-- Runs `wave_2` through `wave_0` in reverse dependency order.
-- The only remaining module-specific destroy placeholder vars are required ECS task image inputs for `task_*`.
+- Runs `wave_1` through `wave_0` in reverse dependency order.
+- The destroy workflow no longer needs ECS task image placeholders because `task_*` stacks are excluded.
 
 When `allow_cleanup` is enabled:
 

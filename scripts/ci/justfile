@@ -163,7 +163,7 @@ tg-waves-to-destroy-waves:
     fi
 
     jq -c '
-      map(.modules |= map(select(. != "oidc")))
+      map(.modules |= map(select((startswith("task_") | not) and (. != "oidc"))))
       | map(select(.modules | length > 0))
       | to_entries
       | map({wave: .key, modules: .value.modules})
@@ -311,6 +311,7 @@ infra-plan-filter-waves-by-changes:
 tf-lint-check:
     #!/bin/bash
     set -euo pipefail
+    cd "{{PROJECT_DIR}}"
     find infra/modules -type f -name '*.tf' -print0 \
       | xargs -0 -n1 dirname \
       | sort -u \
