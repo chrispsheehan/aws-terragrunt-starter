@@ -27,6 +27,15 @@ this starter.
 Use these commands when debugging stack ordering, workflow wave generation, or
 saved-plan metadata joins.
 
+Terragrunt derives account-scoped names from `AWS_ACCOUNT_ID`. The repo-root
+`just tg`, `just tg-all`, and `just tg-graph` recipes resolve it with
+`aws sts get-caller-identity`. Set it yourself only when running Terragrunt
+directly or using non-root justfiles:
+
+```sh
+export AWS_ACCOUNT_ID=<your AWS account id>
+```
+
 To return the direct dependencies for every module as a JSON object:
 
 ```sh
