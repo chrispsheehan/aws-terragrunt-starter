@@ -45,11 +45,16 @@ outputs, and publishes GitHub releases.
 
 `pull_request.yml` provides fast validation.
 
-- Checks workflow syntax, Terraform formatting/linting, changed runtime builds, agent-wrapper sync, and direct execution of `./.github/actions/get-release-version`.
+- Checks workflow syntax, Terraform formatting/linting, Terragrunt wave job
+  shape, changed runtime builds, agent-wrapper sync, and direct execution of
+  `./.github/actions/get-release-version`.
 - The agent-wrapper sync check verifies `AGENTS.md` and `CLAUDE.md` match the standard wrapper directing agents to `REPO_INSTRUCTIONS.md`.
 - Its `check` job runs `.github/actions/get-changes` using the PR base SHA for a PR-style `base...HEAD` diff.
 - Manual `workflow_dispatch` runs force every change flag on and rerun the full validation surface without a PR diff.
 - When `.github/actions/**` changed, it reuses `shared_directories_get.yml` to discover action directories with `Dockerfile`s and runs a Docker unit-test matrix after GitHub formatting.
+- When workflow, Terraform, or Terragrunt files change, it runs
+  `just tg-graph-waves dev` and fails if the generated wave depth does not
+  match the static `wave_N` matrix jobs in the shared infra workflows.
 
 ## Build And Artifact Resolution
 
@@ -77,7 +82,7 @@ wrappers.
 The shared infra plan/apply wrappers execute the graph directly.
 
 - They delegate graph and wave discovery to `shared_get_modules.yml`.
-- They run `wave_0` through `wave_3` jobs in dependency order.
+- They run `wave_0` through `wave_2` jobs in dependency order.
 - Each wave only runs when its module array is non-empty.
 - Each wave fans modules out as a matrix and invokes the repo-local Terragrunt action against `infra/live/<environment>/aws/<module>`.
 
@@ -126,7 +131,7 @@ waves.
 - Takes `plan_artifact_run_id`.
 - Downloads `infra-plan-metadata` from the earlier workflow run.
 - Reads frozen graph inputs and saved wave arrays.
-- Reruns the same `wave_0` through `wave_3` module order.
+- Reruns the same `wave_0` through `wave_2` module order.
 - Downloads each matching `terragrunt-plan-<environment>-<module>` artifact into the live stack directory before invoking `tg_action: apply_plan`.
 - Filters saved rollout waves through `infra-plan-filter-waves-by-changes` in `justfile.ci`, so apply excludes modules whose saved `terragrunt.plan.meta.json` reports `has_changes: false`.
 

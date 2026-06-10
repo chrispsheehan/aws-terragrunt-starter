@@ -166,6 +166,10 @@ tg env module op:
     #!/usr/bin/env bash
     set -euo pipefail
     cd {{justfile_directory()}}/infra/live/{{env}}/{{module}}
+    if [[ -z "${AWS_ACCOUNT_ID:-}" ]]; then
+        AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+        export AWS_ACCOUNT_ID
+    fi
     terragrunt {{op}}
 
 
@@ -174,6 +178,10 @@ tg-all env op:
     #!/usr/bin/env bash
     set -euo pipefail
     cd {{justfile_directory()}}/infra/live/{{env}}
+    if [[ -z "${AWS_ACCOUNT_ID:-}" ]]; then
+        AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+        export AWS_ACCOUNT_ID
+    fi
     export TF_VAR_lambda_version="this"
     export TF_VAR_image_uri="plan-placeholder"
     export TF_VAR_debug_uri="plan-placeholder"
@@ -185,6 +193,10 @@ tg-graph env provider='aws':
     #!/usr/bin/env bash
     set -euo pipefail
     cd {{justfile_directory()}}/infra/live/{{env}}/{{provider}}
+    if [[ -z "${AWS_ACCOUNT_ID:-}" ]]; then
+        AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+        export AWS_ACCOUNT_ID
+    fi
 
     terragrunt run-all graph-dependencies \
       --terragrunt-non-interactive \

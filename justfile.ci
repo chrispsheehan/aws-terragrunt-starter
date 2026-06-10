@@ -132,6 +132,134 @@ tg-graph-json-to-waves:
     ' | jq -c .
 
 
+# Filter raw Terragrunt waves to the infra plan/apply wave shape.
+tg-waves-to-infra-waves:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "{{PROJECT_DIR}}"
+
+    if [[ -z "${RAW_WAVES_JSON:-}" ]]; then
+        echo "❌ RAW_WAVES_JSON is required for tg-waves-to-infra-waves."
+        exit 1
+    fi
+
+    jq -c '
+      map(.modules |= map(select(startswith("task_") | not)))
+      | map(select(.modules | length > 0))
+      | to_entries
+      | map({wave: .key, modules: .value.modules})
+    ' <<<"$RAW_WAVES_JSON"
+
+
+# Filter raw Terragrunt waves to the destroy wave shape.
+tg-waves-to-destroy-waves:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "{{PROJECT_DIR}}"
+
+    if [[ -z "${RAW_WAVES_JSON:-}" ]]; then
+        echo "❌ RAW_WAVES_JSON is required for tg-waves-to-destroy-waves."
+        exit 1
+    fi
+
+    jq -c '
+      map(.modules |= map(select(. != "oidc")))
+      | map(select(.modules | length > 0))
+      | to_entries
+      | map({wave: .key, modules: .value.modules})
+    ' <<<"$RAW_WAVES_JSON"
+
+
+# Validate static GitHub workflow wave jobs match generated wave depth.
+tg-validate-static-wave-jobs:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "{{PROJECT_DIR}}"
+
+    if [[ -z "${RAW_WAVES_JSON:-}" ]]; then
+        echo "❌ RAW_WAVES_JSON is required for tg-validate-static-wave-jobs."
+        exit 1
+    fi
+
+    if [[ -z "${INFRA_WAVES_JSON:-}" ]]; then
+        echo "❌ INFRA_WAVES_JSON is required for tg-validate-static-wave-jobs."
+        exit 1
+    fi
+
+    if [[ -z "${DESTROY_WAVES_JSON:-}" ]]; then
+        echo "❌ DESTROY_WAVES_JSON is required for tg-validate-static-wave-jobs."
+        exit 1
+    fi
+
+    raw_waves_json="$(jq -c . <<<"$RAW_WAVES_JSON")"
+    infra_waves_json="$(jq -c . <<<"$INFRA_WAVES_JSON")"
+    destroy_waves_json="$(jq -c . <<<"$DESTROY_WAVES_JSON")"
+
+    indexes_for_waves() {
+        jq -c 'length as $n | [range(0; $n)]' <<<"$1"
+    }
+
+    indexes_for_workflow() {
+        grep -E '^  wave_[0-9]+:' "$1" \
+          | sed -E 's/^  wave_([0-9]+):.*/\1/' \
+          | sort -n \
+          | jq -Rsc 'split("\n") | map(select(length > 0) | tonumber)'
+    }
+
+    validate_workflow() {
+        local label="$1"
+        local workflow="$2"
+        local waves_json="$3"
+        local expected actual missing extra reason
+
+        expected="$(indexes_for_waves "$waves_json")"
+        actual="$(indexes_for_workflow "$workflow")"
+        missing="$(jq -cn --argjson expected "$expected" --argjson actual "$actual" '$expected - $actual')"
+        extra="$(jq -cn --argjson expected "$expected" --argjson actual "$actual" '$actual - $expected')"
+
+        echo "$label expected wave jobs: $expected"
+        echo "$label actual wave jobs:   $actual"
+
+        if [[ "$actual" != "$expected" ]]; then
+            reason="Wave jobs do not match generated graph."
+            if [[ "$extra" != "[]" && "$missing" == "[]" ]]; then
+                reason="Too many static wave jobs."
+            elif [[ "$missing" != "[]" && "$extra" == "[]" ]]; then
+                reason="Not enough static wave jobs."
+            elif [[ "$missing" != "[]" && "$extra" != "[]" ]]; then
+                reason="Static wave jobs are not contiguous."
+            fi
+
+            {
+                echo "::error file=$workflow,title=Terragrunt wave jobs out of date::$label: $reason"
+                echo "Expected contiguous jobs: $expected"
+                echo "Actual static jobs:       $actual"
+                echo "Not enough wave jobs:     $missing"
+                echo "Too many wave jobs:       $extra"
+                echo
+                echo "Fix $workflow so its top-level wave_N jobs exactly match $expected."
+                if [[ "$extra" != "[]" ]]; then
+                    echo "Remove stale wave job(s): $(jq -r 'map("wave_" + tostring) | join(", ")' <<<"$extra")"
+                fi
+                if [[ "$missing" != "[]" ]]; then
+                    echo "Add missing wave job(s): $(jq -r 'map("wave_" + tostring) | join(", ")' <<<"$missing")"
+                fi
+                echo "Local validation commands: infra/README.md#terragrunt-graph-helpers"
+            } >&2
+            exit 1
+        fi
+    }
+
+    echo "Raw dev waves: $raw_waves_json"
+    echo "Infra plan/apply waves: $infra_waves_json"
+    echo "Destroy waves: $destroy_waves_json"
+
+    validate_workflow "Shared infra plan" ".github/workflows/shared_infra_plan.yml" "$infra_waves_json"
+    validate_workflow "Shared infra apply" ".github/workflows/shared_infra_apply_no_plan.yml" "$infra_waves_json"
+    validate_workflow "Shared infra apply from plan" ".github/workflows/shared_infra_apply_from_plan.yml" "$infra_waves_json"
+    validate_workflow "Destroy" ".github/workflows/destroy.yml" "$destroy_waves_json"
+
+
 # Filter saved infra-plan waves down to modules whose terragrunt.plan.meta.json
 # reports has_changes=true.
 infra-plan-filter-waves-by-changes:

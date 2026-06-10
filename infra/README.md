@@ -27,6 +27,15 @@ this starter.
 Use these commands when debugging stack ordering, workflow wave generation, or
 saved-plan metadata joins.
 
+Terragrunt derives account-scoped names from `AWS_ACCOUNT_ID`. The repo-root
+`just tg`, `just tg-all`, and `just tg-graph` recipes resolve it with
+`aws sts get-caller-identity`. Set it yourself only when running Terragrunt
+directly or using non-root justfiles:
+
+```sh
+export AWS_ACCOUNT_ID=<your AWS account id>
+```
+
 To return the direct dependencies for every module as a JSON object:
 
 ```sh
@@ -37,6 +46,31 @@ To test the wave processor locally through the same split used by CI:
 
 ```sh
 just tg-graph-waves dev
+```
+
+To test the infra plan/apply wave filtering used by PR validation:
+
+```sh
+RAW_WAVES_JSON="$(just tg-graph-waves dev)" just --justfile justfile.ci tg-waves-to-infra-waves
+```
+
+To test the destroy wave filtering used by PR validation:
+
+```sh
+RAW_WAVES_JSON="$(just tg-graph-waves dev)" just --justfile justfile.ci tg-waves-to-destroy-waves
+```
+
+To run the full static workflow wave-job validation locally:
+
+```sh
+RAW_WAVES_JSON="$(just tg-graph-waves dev)"
+INFRA_WAVES_JSON="$(RAW_WAVES_JSON="$RAW_WAVES_JSON" just --justfile justfile.ci tg-waves-to-infra-waves)"
+DESTROY_WAVES_JSON="$(RAW_WAVES_JSON="$RAW_WAVES_JSON" just --justfile justfile.ci tg-waves-to-destroy-waves)"
+
+RAW_WAVES_JSON="$RAW_WAVES_JSON" \
+INFRA_WAVES_JSON="$INFRA_WAVES_JSON" \
+DESTROY_WAVES_JSON="$DESTROY_WAVES_JSON" \
+just --justfile justfile.ci tg-validate-static-wave-jobs
 ```
 
 If you only need the raw Terragrunt graph output:
