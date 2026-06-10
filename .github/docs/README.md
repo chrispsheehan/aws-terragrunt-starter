@@ -36,11 +36,12 @@ For OIDC role ARN construction, also read
 outputs, and publishes GitHub releases.
 
 - Version bumps come from `./.github/actions/get-release-version`.
-- Configurable bump prefixes classify major, minor, and patch releases.
+- Default bump rules classify `feat` as minor, `fix` as patch, and `!` or
+  `BREAKING CHANGE:` subjects as major.
 - `createNewTag` is the tag-creation predicate.
 - `createNewRelease` is the full-release predicate.
-- `release_bumps` is configured as `major,minor`.
-- Patch bumps still create semver tags, but skip artifact discovery, shared artifact prep, runtime builds, commit-note collection, and GitHub release publishing.
+- The repository uses the action defaults, so major, minor, and patch bumps all
+  create full releases.
 
 `pull_request.yml` provides fast validation.
 

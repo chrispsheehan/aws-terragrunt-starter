@@ -17,7 +17,7 @@ on:
         description: "PR title to validate and use for version preview when running manually"
         required: false
         type: string
-        default: "chore: manual workflow dispatch"
+        default: "fix: manual workflow dispatch"
 
 jobs:
   check-pr-title:
@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PR_TITLE: ${{ github.event.pull_request.title || inputs.pr_title }}
-      ALLOWED_PREFIXES: "breaking: feat: patch: fix: minor: chore: docs:"
+      ALLOWED_PREFIXES: "feat: feat!: fix: fix!:"
     steps:
       - name: Fail if PR title does not start with an allowed prefix
         run: |
@@ -128,10 +128,6 @@ jobs:
         uses: ./.github/actions/get-release-version
         with:
           subjects: ${{ github.event.pull_request.title || inputs.pr_title }}
-          major_prefixes: breaking,feat,!feat
-          minor_prefixes: minor,fix,patch
-          patch_prefixes: chore,docs
-          release_bumps: major,minor
 
       - name: Show action outputs
         run: |
