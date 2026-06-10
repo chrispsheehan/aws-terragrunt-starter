@@ -50,6 +50,9 @@ outputs, and publishes GitHub releases.
   `./.github/actions/get-release-version`.
 - The agent-wrapper sync check verifies `AGENTS.md` and `CLAUDE.md` match the standard wrapper directing agents to `REPO_INSTRUCTIONS.md`.
 - Its `check` job runs `.github/actions/get-changes` using the PR base SHA for a PR-style `base...HEAD` diff.
+- It discovers deployable live environments from `infra/live` through
+  `justfile.ci` and runs `just tg-all <environment> validate` as a matrix for
+  Terraform or Terragrunt changes.
 - Manual `workflow_dispatch` runs force every change flag on and rerun the full validation surface without a PR diff.
 - When `.github/actions/**` changed, it reuses `shared_directories_get.yml` to discover action directories with `Dockerfile`s and runs a Docker unit-test matrix after GitHub formatting.
 - When workflow, Terraform, or Terragrunt files change, it runs
