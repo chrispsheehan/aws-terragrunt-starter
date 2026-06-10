@@ -147,7 +147,7 @@ jobs:
           PROJECT_NAME: ${{ vars.PROJECT_NAME }}
           ALLOW_CLEANUP: ${{ inputs.allow_cleanup }}
         with:
-          justfile_path: justfile.destroy
+          justfile_path: scripts/destroy.justfile
           just_action: count-tagged-resources
 
       - name: Warn when tagged resources remain
@@ -165,7 +165,7 @@ jobs:
           PROJECT_NAME: ${{ vars.PROJECT_NAME }}
           ALLOW_CLEANUP: ${{ inputs.allow_cleanup }}
         with:
-          justfile_path: justfile.destroy
+          justfile_path: scripts/destroy.justfile
           just_action: cleanup-tagged-resources
 
       - name: Warn when tagged cleanup leaves leftovers

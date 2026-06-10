@@ -2,10 +2,10 @@
 # This file is for discovery, validation, artifact existence checks, and matrix shaping.
 # Do not put AWS-mutating rollout or deploy commands here.
 
-PROJECT_DIR := `just --justfile justfile --evaluate PROJECT_DIR`
-LAMBDA_DIR := `just --justfile justfile --evaluate LAMBDA_DIR`
-APPSPEC_DIR := `just --justfile justfile --evaluate APPSPEC_DIR`
-CONTAINERS_DIR := `just --justfile justfile --evaluate CONTAINERS_DIR`
+PROJECT_DIR := `cd .. && pwd`
+LAMBDA_DIR := `just --justfile ../justfile --evaluate LAMBDA_DIR`
+APPSPEC_DIR := `just --justfile ../justfile --evaluate APPSPEC_DIR`
+CONTAINERS_DIR := `just --justfile ../justfile --evaluate CONTAINERS_DIR`
 
 
 # Convert raw Terragrunt graph output from TG_GRAPH_OUTPUT into compact JSON.

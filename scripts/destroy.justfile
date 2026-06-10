@@ -1,7 +1,7 @@
 # Destroy and cleanup helpers only.
 # This file is for explicit teardown and post-destroy sweep steps.
 
-PROJECT_DIR := `just --justfile justfile --evaluate PROJECT_DIR`
+PROJECT_DIR := `cd .. && pwd`
 
 
 # Count tagged resources that Terraform destroy may leave behind.

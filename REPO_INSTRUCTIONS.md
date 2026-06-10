@@ -72,6 +72,6 @@ These instructions apply to the entire repository.
 
 ## High-Signal Edit Warnings
 
-- before editing `justfile.ci`, `justfile.deploy`, or `justfile.destroy`, warn the human in commentary that the file is used by automation as well as local commands; for `justfile.destroy`, also warn that it owns destroy commands
+- before editing `scripts/ci.justfile`, `scripts/deploy.justfile`, or `scripts/destroy.justfile`, warn the human in commentary that the file is used by automation as well as local commands; for `scripts/destroy.justfile`, also warn that it owns destroy commands
 - before editing `.github/workflows/shared_*.yml`, warn the human in commentary that shared CI workflows have broad blast radius
 - before editing `infra/modules/aws/_shared/**`, warn the human in commentary that shared Terraform modules have broad downstream contract impact
