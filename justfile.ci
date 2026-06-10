@@ -210,7 +210,7 @@ tg-validate-static-wave-jobs:
         local label="$1"
         local workflow="$2"
         local waves_json="$3"
-        local expected actual missing extra
+        local expected actual missing extra reason
 
         expected="$(indexes_for_waves "$waves_json")"
         actual="$(indexes_for_workflow "$workflow")"
@@ -221,12 +221,21 @@ tg-validate-static-wave-jobs:
         echo "$label actual wave jobs:   $actual"
 
         if [[ "$actual" != "$expected" ]]; then
+            reason="Wave jobs do not match generated graph."
+            if [[ "$extra" != "[]" && "$missing" == "[]" ]]; then
+                reason="Too many static wave jobs."
+            elif [[ "$missing" != "[]" && "$extra" == "[]" ]]; then
+                reason="Not enough static wave jobs."
+            elif [[ "$missing" != "[]" && "$extra" != "[]" ]]; then
+                reason="Static wave jobs are not contiguous."
+            fi
+
             {
-                echo "::error file=$workflow,title=Terragrunt wave jobs out of date::$label static wave jobs do not match the generated Terragrunt graph."
+                echo "::error file=$workflow,title=Terragrunt wave jobs out of date::$label: $reason"
                 echo "Expected contiguous jobs: $expected"
                 echo "Actual static jobs:       $actual"
-                echo "Missing job indexes:      $missing"
-                echo "Extra job indexes:        $extra"
+                echo "Not enough wave jobs:     $missing"
+                echo "Too many wave jobs:       $extra"
                 echo
                 echo "Fix $workflow so its top-level wave_N jobs exactly match $expected."
                 if [[ "$extra" != "[]" ]]; then
@@ -235,7 +244,7 @@ tg-validate-static-wave-jobs:
                 if [[ "$missing" != "[]" ]]; then
                     echo "Add missing wave job(s): $(jq -r 'map("wave_" + tostring) | join(", ")' <<<"$missing")"
                 fi
-                echo "Regenerate/check locally with: AWS_ACCOUNT_ID=<account> just tg-graph-waves dev"
+                echo "Local validation commands: infra/README.md#terragrunt-graph-helpers"
             } >&2
             exit 1
         fi
