@@ -163,7 +163,7 @@ tg-waves-to-destroy-waves:
     fi
 
     jq -c '
-      map(.modules |= map(select((startswith("task_") | not) and (. != "oidc"))))
+      map(.modules |= map(select(. != "oidc")))
       | map(select(.modules | length > 0))
       | to_entries
       | map({wave: .key, modules: .value.modules})
