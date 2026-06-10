@@ -67,6 +67,61 @@ format:
     terragrunt hclfmt
 
 
+# Check that the pre-existing runtime VPC and private subnets are available.
+check-network vpc_name:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    configured_region=$(aws configure get region)
+    configured_vpc_name={{vpc_name}}
+
+    echo "Checking AWS network prerequisites..."
+    echo "AWS CLI configured region: $configured_region"
+    echo "VPC Name tag: $configured_vpc_name"
+
+    vpc_ids_raw="$(
+        aws ec2 describe-vpcs \
+          --region "$configured_region" \
+          --filters "Name=tag:Name,Values=$configured_vpc_name" \
+          --query 'Vpcs[].VpcId' \
+          --output text
+    )"
+
+    read -r -a vpc_ids <<< "$vpc_ids_raw"
+
+    if [[ "${#vpc_ids[@]}" -eq 0 || -z "${vpc_ids[0]:-}" ]]; then
+        echo "🔴 No VPC found with Name tag '$configured_vpc_name' in $configured_region."
+        exit 1
+    fi
+
+    if [[ "${#vpc_ids[@]}" -gt 1 ]]; then
+        echo "🔴 Multiple VPCs found with Name tag '$configured_vpc_name' in $configured_region: ${vpc_ids[*]}"
+        echo "Update infra/live/global_vars.hcl so vpc_name uniquely identifies one VPC."
+        exit 1
+    fi
+
+    vpc_id="${vpc_ids[0]}"
+
+    subnet_ids_raw="$(
+        aws ec2 describe-subnets \
+          --region "$configured_region" \
+          --filters "Name=vpc-id,Values=$vpc_id" "Name=tag:Name,Values=*private*" \
+          --query 'Subnets[].SubnetId' \
+          --output text
+    )"
+
+    read -r -a subnet_ids <<< "$subnet_ids_raw"
+
+    if [[ "${#subnet_ids[@]}" -eq 0 || -z "${subnet_ids[0]:-}" ]]; then
+        echo "🔴 No private subnets found in $vpc_id with Name tags containing 'private'."
+        exit 1
+    fi
+
+    echo "✅ Found VPC: $vpc_id"
+    echo "✅ Found private subnets: ${subnet_ids[*]}"
+    echo "✅ AWS network prerequisites are present."
+
+
 # Open an ECS Exec shell in the worker service container.
 worker-debug-shell env service_name='ecs-worker' container_name='ecs-worker' command='/bin/sh':
     #!/usr/bin/env bash
