@@ -46,7 +46,7 @@ resource "aws_ecs_service" "service_worker" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets          = data.aws_subnets.private.ids
+    subnets          = data.aws_subnets.public.ids
     assign_public_ip = false
     security_groups  = [var.ecs_security_group_id]
   }
@@ -65,7 +65,7 @@ resource "aws_ecs_service" "service_worker" {
 
   lifecycle {
     precondition {
-      condition     = length(data.aws_subnets.private.ids) > 0
+      condition     = length(data.aws_subnets.public.ids) > 0
       error_message = "Selected ECS service subnet list must not be empty."
     }
 
