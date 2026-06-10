@@ -3,42 +3,6 @@
 Minimal AWS Terragrunt starter for a Lambda deploy surface and an ECS worker
 service.
 
-## Current Shape
-
-- Lambda source: `lambdas/migrations`
-- ECS source: `containers/worker`
-- Infra root: `infra/root.hcl`
-- Terraform modules: `infra/modules/aws`
-- Live stacks: `infra/live/<environment>/aws/<stack>`
-
-Environments:
-
-- `ci`: `oidc`, `ecr`, `code_bucket`
-- `dev`: `oidc`, `ecr`, `code_bucket`, `cluster`, `security`, `task_worker`,
-  `service_worker`, `migrations`
-- `prod`: `oidc`, `cluster`, `security`, `task_worker`, `service_worker`,
-  `migrations`
-
-## Infra Stacks
-
-- `oidc`: GitHub Actions IAM role and policies
-- `code_bucket`: deployment artifact bucket
-- `ecr`: container image repository and bootstrap image tag
-- `cluster`: ECS cluster
-- `security`: runtime security group outputs
-- `task_worker`: ECS task definition for `containers/worker`
-- `service_worker`: ECS service for the worker task
-- `migrations`: Lambda function, alias, log group, and CodeDeploy resources
-
-State is stored under:
-
-```text
-s3://<account>-<region>-<repo>-tfstate/<environment>/<provider>/<module>/terraform.tfstate
-```
-
-Terraform S3 backend lock files sit next to state objects with the
-`.tflock` suffix.
-
 ## Useful Commands
 
 ```sh
@@ -56,6 +20,17 @@ stacks, the target AWS account and region must already contain:
 
 The default `vpc_name` is `vpc`. Update `infra/live/global_vars.hcl` if your
 pre-existing VPC uses a different `Name` tag.
+
+## Terragrunt State
+
+State is stored under:
+
+```text
+s3://<account>-<region>-<repo>-tfstate/<environment>/<provider>/<module>/terraform.tfstate
+```
+
+Terraform S3 backend lock files sit next to state objects with the
+`.tflock` suffix.
 
 ## Initial OIDC Bootstrap
 
@@ -105,7 +80,7 @@ automatically and does not need to be created manually.
 
 - Lambda layout: [lambdas/README.md](lambdas/README.md)
 - Container layout: [containers/README.md](containers/README.md)
-- Infra workflow notes: [infra/readme.md](infra/readme.md)
+- Infra workflow notes: [infra/README.md](infra/README.md)
 - Lambda module contract: [infra/modules/aws/migrations/README.md](infra/modules/aws/migrations/README.md)
 - ECS module contracts: [task_worker](infra/modules/aws/task_worker/README.md),
   [service_worker](infra/modules/aws/service_worker/README.md)

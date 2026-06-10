@@ -68,7 +68,7 @@ These instructions apply to the entire repository.
 - for noisy plans or logs, write command output under ignored `tmp/` and return only filtered summary lines such as `No changes`, `Plan:`, `Error:`, `Failed`, or relevant `WARN`
 - treat saved plans as apply-intent artifacts; do not apply plans that captured bootstrap/mock values
 - if credentials, network, permissions, or state access block planning, say so and name the exact manual plan command
-- for saved-plan and mock-output details, read `infra/readme.md` and `.github/docs/README.md`
+- for saved-plan and mock-output details, read `infra/README.md` and `.github/docs/README.md`
 
 ## High-Signal Edit Warnings
 
