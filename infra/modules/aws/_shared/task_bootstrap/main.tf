@@ -8,8 +8,6 @@ module "task_bootstrap" {
   cpu                 = 256
   memory              = 512
 
-  
-
   image_uri = local.bootstrap_image_uri
 
   root_path    = ""
@@ -19,4 +17,12 @@ module "task_bootstrap" {
     "-c",
     "printf 'ok\\n' > /usr/share/nginx/html/health && exec nginx -g 'daemon off;'",
   ]
+
+  health_check = {
+    command      = ["CMD-SHELL", "test -s /usr/share/nginx/html/health"]
+    interval     = 30
+    timeout      = 5
+    retries      = 3
+    start_period = 10
+  }
 }

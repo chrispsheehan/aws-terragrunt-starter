@@ -24,6 +24,10 @@ Use this only for bootstrap service applies that need a stable task definition
 before the real service task has been published. Runtime task revisions should
 continue to come from concrete task wrappers such as `task_worker`.
 
+The bootstrap container writes `/usr/share/nginx/html/health` before starting
+nginx, and the ECS container health check verifies that file is present and
+non-empty.
+
 The image URI is derived from the current AWS account, `aws_region`,
 `ecr_repository_name`, and the stable `:bootstrap` tag. The ECR stack must
 publish that tag before a bootstrap service apply can successfully start tasks.
