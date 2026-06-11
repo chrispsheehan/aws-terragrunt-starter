@@ -19,10 +19,11 @@ Shared ECS task-definition module.
 - `command`
 - optional `health_check`
 
-In the concrete ECS task wrappers in this repo, `local_tunnel` defaults to
-`false` unless the environment explicitly opts in. `xray_enabled` is currently
-only passed through as an environment flag for compatibility; this repo no
-longer includes OpenTelemetry worker code.
+`debug_uri` defaults to an empty string because it is only used when
+`local_tunnel` is true. `local_tunnel` defaults to `false` unless a wrapper or
+environment explicitly opts in. `xray_enabled` defaults to `false` and is
+currently only passed through as an environment flag for compatibility; this
+repo no longer includes OpenTelemetry worker code.
 
 ## Key outputs
 

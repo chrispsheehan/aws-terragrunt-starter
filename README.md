@@ -16,6 +16,7 @@ This starter does not create the VPC or subnets. Before applying the runtime
 stacks, the target AWS account and region must already contain:
 
 - a VPC with `Name` tag matching `vpc_name` in `infra/live/global_vars.hcl`
+- public subnets in that VPC with `Name` tags containing `public`
 - private subnets in that VPC with `Name` tags containing `private`
 
 The default `vpc_name` is `vpc`. Update `infra/live/global_vars.hcl` if your
@@ -90,6 +91,8 @@ automatically and does not need to be created manually.
 - Lambda module contract: [infra/modules/aws/migrations/README.md](infra/modules/aws/migrations/README.md)
 - ECS module contracts: [task_worker](infra/modules/aws/task_worker/README.md),
   [service_worker](infra/modules/aws/service_worker/README.md)
-- Shared infra contracts: [oidc](infra/modules/aws/_shared/oidc/README.md),
+- Shared infra contracts: [task](infra/modules/aws/_shared/task/README.md),
+  [task_bootstrap](infra/modules/aws/_shared/task_bootstrap/README.md),
+  [oidc](infra/modules/aws/_shared/oidc/README.md),
   [ecr](infra/modules/aws/_shared/ecr/README.md),
   [code_bucket](infra/modules/aws/_shared/code_bucket/README.md)

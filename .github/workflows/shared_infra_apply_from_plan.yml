@@ -78,7 +78,7 @@ jobs:
           PLAN_METADATA_FILE: plan-metadata.json
           PLAN_ARTIFACTS_DIR: plan-artifacts
         with:
-          justfile_path: justfile.ci
+          justfile_path: scripts/ci/justfile
           just_action: infra-plan-filter-waves-by-changes
 
       - name: Read plan metadata

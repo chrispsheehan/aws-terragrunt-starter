@@ -80,14 +80,14 @@ jobs:
         id: lambda_artifact_dir
         uses: ./.github/actions/just
         with:
-          justfile_path: justfile.ci
+          justfile_path: scripts/ci/justfile
           just_action: code-bucket-get-lambda-artifact-dir
 
       - name: Read AppSpec artifact dir
         id: appspec_artifact_dir
         uses: ./.github/actions/just
         with:
-          justfile_path: justfile.ci
+          justfile_path: scripts/ci/justfile
           just_action: code-bucket-get-appspec-artifact-dir
 
       - name: Deploy build artifact bucket

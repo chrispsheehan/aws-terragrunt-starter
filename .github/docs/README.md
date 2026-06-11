@@ -64,7 +64,7 @@ such as ECR and the code bucket.
 - Exposes bucket/repository values as reusable-workflow outputs.
 - The `ecr` job configures AWS credentials once.
 - The Terraform ECR module owns the stable bootstrap `:bootstrap` image through the Docker provider.
-- The code-bucket job reads Lambda, AppSpec, and infra-plan S3 prefix names from `justfile.ci` recipes and forwards them as `TF_VAR_*`.
+- The code-bucket job reads Lambda, AppSpec, and infra-plan S3 prefix names from `scripts/ci/justfile` recipes and forwards them as `TF_VAR_*`.
 
 `shared_build.yml` builds and publishes Lambda and ECS artifacts.
 
@@ -133,7 +133,7 @@ waves.
 - Reads frozen graph inputs and saved wave arrays.
 - Reruns the same `wave_0` through `wave_2` module order.
 - Downloads each matching `terragrunt-plan-<environment>-<module>` artifact into the live stack directory before invoking `tg_action: apply_plan`.
-- Filters saved rollout waves through `infra-plan-filter-waves-by-changes` in `justfile.ci`, so apply excludes modules whose saved `terragrunt.plan.meta.json` reports `has_changes: false`.
+- Filters saved rollout waves through `infra-plan-filter-waves-by-changes` in `scripts/ci/justfile`, so apply excludes modules whose saved `terragrunt.plan.meta.json` reports `has_changes: false`.
 
 Saved infra-plan storage is split into:
 
@@ -194,7 +194,7 @@ shared-infra wave order.
 
 When `allow_cleanup` is enabled:
 
-- The workflow first counts tagged leftovers through `justfile.destroy`.
+- The workflow first counts tagged leftovers through `scripts/destroy/justfile`.
 - It prints a warning only when leftovers remain.
 - It then runs the cleanup recipe.
 - Cleanup deregisters and deletes tagged ECS task-definition revisions.

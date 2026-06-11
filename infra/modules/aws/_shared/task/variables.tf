@@ -35,15 +35,18 @@ variable "image_uri" {
 }
 
 variable "debug_uri" {
-  type = string
+  type    = string
+  default = ""
 }
 
 variable "local_tunnel" {
-  type = bool
+  type    = bool
+  default = false
 }
 
 variable "xray_enabled" {
-  type = bool
+  type    = bool
+  default = false
 }
 
 variable "additional_env_vars" {

@@ -13,8 +13,8 @@ Concrete ECS worker service wrapper.
 ## Inputs That Change Behavior
 
 - uses the worker task revision exported by `task_worker`
-- uses placeholder values during bootstrap applies so the first service apply does not require pre-existing task state
-- defaults to private subnets with `assign_public_ip = false`
+- uses `_shared/task_bootstrap` during bootstrap applies so the first service apply does not require pre-existing task state
+- defaults to public subnets with `assign_public_ip = false`
 
 ## Outputs Consumers Rely On
 
@@ -27,6 +27,7 @@ Concrete ECS worker service wrapper.
 - ECS worker service
 - internal service shape
 - uses native ECS rolling deployment
+- bootstrap mode creates a temporary task definition with its own task role and ECR pull-capable execution role
 
 ## Dependency Notes
 

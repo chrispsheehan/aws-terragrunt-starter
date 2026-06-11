@@ -58,7 +58,7 @@ jobs:
       - name: Run just with ambient AWS session
         uses: ./.github/actions/just
         with:
-          justfile_path: justfile.ci
+          justfile_path: scripts/ci/justfile
           just_action: some-aws-recipe
 ```
 
