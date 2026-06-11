@@ -48,7 +48,7 @@ jobs:
 
       - name: Get next version
         id: get_next_version
-        uses: ./.github/actions/get-release-version
+        uses: chrispsheehan/get-release-version@v1
 
       - name: Show the next version
         run: |

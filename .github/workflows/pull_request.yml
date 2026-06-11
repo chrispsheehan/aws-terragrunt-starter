@@ -125,7 +125,7 @@ jobs:
 
       - name: Execute get-release-version action
         id: get_next_version
-        uses: ./.github/actions/get-release-version
+        uses: chrispsheehan/get-release-version@v1
         with:
           subjects: ${{ github.event.pull_request.title || inputs.pr_title }}
 
