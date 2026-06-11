@@ -19,6 +19,20 @@ resource "aws_iam_role_policy_attachment" "bootstrap_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+resource "aws_iam_policy" "bootstrap_ecr_pull" {
+  count = var.bootstrap ? 1 : 0
+
+  name   = "${var.service_name}-bootstrap-ecr-pull-policy"
+  policy = data.aws_iam_policy_document.bootstrap_ecr_pull.json
+}
+
+resource "aws_iam_role_policy_attachment" "bootstrap_ecr_pull" {
+  count = var.bootstrap ? 1 : 0
+
+  role       = aws_iam_role.bootstrap_execution[0].name
+  policy_arn = aws_iam_policy.bootstrap_ecr_pull[0].arn
+}
+
 resource "aws_ecs_task_definition" "bootstrap" {
   count = var.bootstrap ? 1 : 0
 

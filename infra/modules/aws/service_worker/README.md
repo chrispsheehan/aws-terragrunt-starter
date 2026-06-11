@@ -27,6 +27,8 @@ Concrete ECS worker service wrapper.
 - ECS worker service
 - internal service shape
 - uses native ECS rolling deployment
+- bootstrap mode creates a temporary task definition with its own task role and
+  ECR pull-capable execution role
 
 ## Dependency Notes
 
