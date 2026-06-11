@@ -1,5 +1,5 @@
 module "task_worker" {
-  source = "..//_shared/task"
+  source = "..//_shared//task"
 
   project_name        = var.project_name
   ecr_repository_name = var.ecr_repository_name
