@@ -17,7 +17,7 @@ resource "aws_ecs_service" "service_worker" {
 
   network_configuration {
     subnets          = data.aws_subnets.public.ids
-    assign_public_ip = var.bootstrap ? true : false
+    assign_public_ip = true # required for public subnets to pull from ecr
     security_groups  = [var.ecs_security_group_id]
   }
 
