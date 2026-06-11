@@ -1,55 +1,11 @@
-resource "aws_iam_role" "bootstrap_execution" {
+module "bootstrap_task" {
   count = var.bootstrap ? 1 : 0
 
-  name               = "${var.service_name}-bootstrap-ecs-task-execution-role"
-  assume_role_policy = data.aws_iam_policy_document.bootstrap_assume_role.json
-}
+  source = "../_shared/task_bootstrap"
 
-resource "aws_iam_role" "bootstrap_task" {
-  count = var.bootstrap ? 1 : 0
-
-  name               = "${var.service_name}-bootstrap-ecs-task-role"
-  assume_role_policy = data.aws_iam_policy_document.bootstrap_assume_role.json
-}
-
-resource "aws_iam_role_policy_attachment" "bootstrap_execution" {
-  count = var.bootstrap ? 1 : 0
-
-  role       = aws_iam_role.bootstrap_execution[0].name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
-}
-
-resource "aws_iam_policy" "bootstrap_ecr_pull" {
-  count = var.bootstrap ? 1 : 0
-
-  name   = "${var.service_name}-bootstrap-ecr-pull-policy"
-  policy = data.aws_iam_policy_document.bootstrap_ecr_pull.json
-}
-
-resource "aws_iam_role_policy_attachment" "bootstrap_ecr_pull" {
-  count = var.bootstrap ? 1 : 0
-
-  role       = aws_iam_role.bootstrap_execution[0].name
-  policy_arn = aws_iam_policy.bootstrap_ecr_pull[0].arn
-}
-
-resource "aws_ecs_task_definition" "bootstrap" {
-  count = var.bootstrap ? 1 : 0
-
-  family                   = "${var.service_name}-bootstrap-task"
-  network_mode             = "awsvpc"
-  requires_compatibilities = ["FARGATE"]
-  cpu                      = 256
-  memory                   = 512
-  execution_role_arn       = aws_iam_role.bootstrap_execution[0].arn
-  task_role_arn            = aws_iam_role.bootstrap_task[0].arn
-
-  runtime_platform {
-    cpu_architecture        = "X86_64"
-    operating_system_family = "LINUX"
-  }
-
-  container_definitions = local.bootstrap_container_definitions
+  aws_region          = var.aws_region
+  project_name        = var.project_name
+  ecr_repository_name = var.ecr_repository_name
 }
 
 resource "aws_ecs_service" "service_worker" {
