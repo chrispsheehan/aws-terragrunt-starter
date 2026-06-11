@@ -1,5 +1,5 @@
 module "task_bootstrap" {
-  source = "../task"
+  source = "..//task"
 
   project_name        = var.project_name
   ecr_repository_name = var.ecr_repository_name
@@ -7,6 +7,8 @@ module "task_bootstrap" {
   container_port      = 80
   cpu                 = 256
   memory              = 512
+
+  
 
   image_uri = local.bootstrap_image_uri
 

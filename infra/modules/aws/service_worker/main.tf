@@ -1,7 +1,7 @@
 module "bootstrap_task" {
   count = var.bootstrap ? 1 : 0
 
-  source = "../_shared/task_bootstrap"
+  source = "..//_shared//task_bootstrap"
 
   aws_region          = var.aws_region
   project_name        = var.project_name
