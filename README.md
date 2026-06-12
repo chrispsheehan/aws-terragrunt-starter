@@ -1,7 +1,6 @@
 # AWS Terragrunt Starter
 
-Minimal AWS Terragrunt-based starter for reliable deployments across multiple
-environments.
+AWS Terragrunt starter for multi-environment infrastructure and code deployment, with generated GitHub Actions workflows, OIDC-based AWS access, bootstrap-safe applies, and saved-plan promotion flows.
 
 GitHub workflow jobs are generated from the infrastructure configuration. See
 [workflow docs](.github/docs/README.md) for workflow detail and
