@@ -3,24 +3,30 @@
 Shared infra notes for workflow behavior, saved plans, and Terragrunt graph
 debugging.
 
-## Deployment Model
+## Terragrunt State
 
-Infrastructure apply and feature-code rollout are intentionally decoupled in
-this starter.
+State is stored under:
 
-- Infrastructure applies create the stable runtime surface; rerunning
-  infrastructure does not roll out new feature code.
-- Bootstrap applies may use placeholder inputs so runtime stacks can create
-  stable surfaces before the first real Lambda zip or ECS task revision exists.
-- Saved plans are apply-intent artifacts. Do not apply a plan that captured
-  bootstrap placeholders or mocked upstream dependency outputs.
-- GitHub saved-plan artifacts are keyed by workflow run id, with one run-level
-  metadata artifact plus one per-stack plan artifact.
-- Saved plan artifacts are time-limited; apply-from-plan must happen before
-  artifact expiry.
-- Code artifact retention is configured in the shared code bucket module.
-- Detailed workflow contracts, reusable-workflow inputs, and repo-local action
-  behavior live in [CI docs](../.github/docs/README.md).
+```text
+s3://<account>-<region>-<repo>-tfstate/<environment>/<provider>/<module>/terraform.tfstate
+```
+
+Terraform S3 backend lock files sit next to state objects with the `.tflock`
+suffix.
+
+## Concepts
+
+- Waves: Terragrunt dependencies are split into ordered workflow waves. Apply
+  runs foundations first; destroy runs the same waves in reverse. Infra waves
+  exclude `task_*` stacks because code deploy owns ECS task revisions.
+- Bootstrapping: infra applies create the stable runtime surface before real
+  application artifacts exist. Placeholder inputs and `TF_VAR_bootstrap=true`
+  keep first-time ECS/Lambda applies planable; code deploy rolls real artifacts
+  later.
+- Saved plans: plan runs freeze inputs and wave order, then upload one run-level
+  metadata artifact plus one plan artifact per changed stack. Apply-from-plan
+  uses the source run id, skips unchanged stacks, and must run before artifacts
+  expire. Do not apply plans that captured mocked outputs.
 
 ## Terragrunt Graph Helpers
 
