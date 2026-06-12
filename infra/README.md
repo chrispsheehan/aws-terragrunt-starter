@@ -3,6 +3,17 @@
 Shared infra notes for workflow behavior, saved plans, and Terragrunt graph
 debugging.
 
+## Terragrunt State
+
+State is stored under:
+
+```text
+s3://<account>-<region>-<repo>-tfstate/<environment>/<provider>/<module>/terraform.tfstate
+```
+
+Terraform S3 backend lock files sit next to state objects with the `.tflock`
+suffix.
+
 ## Deployment Model
 
 Infrastructure apply and feature-code rollout are intentionally decoupled in
