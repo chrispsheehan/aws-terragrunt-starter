@@ -28,9 +28,6 @@ suffix.
   uses the source run id, skips unchanged stacks, and must run before artifacts
   expire. Do not apply plans that captured mocked outputs.
 
-Detailed workflow contracts, reusable-workflow inputs, and repo-local action
-behavior live in [CI docs](../.github/docs/README.md).
-
 ## Terragrunt Graph Helpers
 
 Use these commands when debugging stack ordering, workflow wave generation, or
