@@ -7,6 +7,9 @@ GitHub workflow jobs are generated from the infrastructure configuration. See
 [workflow docs](.github/docs/README.md) for workflow detail and
 [infra/README.md](infra/README.md) for state and Terragrunt graph notes.
 
+AI agents working in this repository should read
+[REPO_INSTRUCTIONS.md](REPO_INSTRUCTIONS.md) before making changes.
+
 ## Useful Commands
 
 ```sh
