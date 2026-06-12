@@ -4,8 +4,8 @@ Minimal AWS Terragrunt-based starter for reliable deployments across multiple
 environments.
 
 GitHub workflow jobs are generated from the infrastructure configuration. See
-[infra/README.md](infra/README.md) for workflow, state, and Terragrunt graph
-notes.
+[workflow docs](.github/docs/README.md) for workflow detail and
+[infra/README.md](infra/README.md) for state and Terragrunt graph notes.
 
 ## Useful Commands
 
