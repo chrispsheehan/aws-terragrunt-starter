@@ -52,6 +52,7 @@ outputs, and publishes GitHub releases.
 - Its `check` job runs `.github/actions/get-changes` using the PR base SHA for a PR-style `base...HEAD` diff.
 - Manual `workflow_dispatch` runs force every change flag on and rerun the full validation surface without a PR diff.
 - When `.github/actions/**` changed, it reuses `shared_directories_get.yml` to discover action directories with `Dockerfile`s and runs a Docker unit-test matrix after GitHub formatting.
+- When `frontend/**` changed, it runs the frontend static build through `scripts/deploy/justfile`.
 - When workflow, Terraform, or Terragrunt files change, it runs
   `just tg-graph-waves dev` and fails if the generated wave depth does not
   match the static `wave_N` matrix jobs in the shared infra workflows.

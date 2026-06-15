@@ -20,6 +20,7 @@ Default path buckets:
 - `terragrunt`: `infra/**`
 - `github`: `.github/**`
 - `lambdas`: `lambdas/**`
+- `frontend`: `frontend/**`
 - `containers`: `containers/**`
 
 ---
@@ -42,6 +43,7 @@ Default path buckets:
 | `terragrunt` | Whether Terragrunt or infra files changed        |
 | `github`     | Whether GitHub workflow or action files changed  |
 | `lambdas`    | Whether Lambda source files changed              |
+| `frontend`   | Whether frontend source files changed            |
 | `containers` | Whether container source files changed           |
 
 ---

@@ -15,6 +15,7 @@ CATEGORY_PREFIXES = {
     "terragrunt": ("infra/",),
     "github": (".github/",),
     "lambdas": ("lambdas/",),
+    "frontend": ("frontend/",),
     "containers": ("containers/",),
 }
 
