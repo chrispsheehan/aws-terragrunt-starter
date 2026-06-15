@@ -170,6 +170,7 @@ That prevents partial real upstream state from suppressing missing mock keys.
 `shared_deploy.yml` rolls out feature code.
 
 - Its `Summary` job writes the fixed code deploy target summary.
+- Syncs the selected frontend artifact into the public S3 website bucket when a frontend version is provided.
 - Publishes the `migrations` Lambda version.
 - Invokes the `migrations` Lambda after CodeDeploy completes.
 - Applies the `task_worker` stack with `worker` and `debug` image URIs.

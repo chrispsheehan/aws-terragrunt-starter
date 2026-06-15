@@ -194,6 +194,33 @@ frontend-upload:
     echo "✅ Frontend uploaded to s3://$BUCKET_NAME/frontend/$VERSION/frontend.zip"
 
 
+# Sync a published frontend artifact into the live website bucket.
+frontend-deploy:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    if [[ -z "$BUCKET_NAME" ]]; then
+        echo "❌ BUCKET_NAME environment variable is not set."
+        exit 1
+    fi
+
+    if [[ -z "$VERSION" ]]; then
+        echo "❌ VERSION environment variable is not set."
+        exit 1
+    fi
+
+    if [[ -z "$WEBSITE_BUCKET" ]]; then
+        echo "❌ WEBSITE_BUCKET environment variable is not set."
+        exit 1
+    fi
+
+    TMPDIR="$(mktemp -d)"
+    aws s3 cp "s3://$BUCKET_NAME/frontend/$VERSION/frontend.zip" "$TMPDIR/frontend.zip"
+    unzip -q "$TMPDIR/frontend.zip" -d "$TMPDIR/dist"
+    aws s3 sync "$TMPDIR/dist/" "s3://$WEBSITE_BUCKET/" --delete
+    echo "✅ Frontend deployed to s3://$WEBSITE_BUCKET"
+
+
 # Read the current Lambda alias version.
 lambda-get-version:
     #!/usr/bin/env bash
