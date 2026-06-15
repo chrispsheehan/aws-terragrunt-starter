@@ -69,12 +69,14 @@ such as ECR and the code bucket.
 `shared_build.yml` builds and publishes Lambda and ECS artifacts.
 
 - Lambda builds upload `lambdas/migrations` as `migrations.zip`.
+- Frontend builds upload `frontend.zip` under `frontend/<version>/`.
 - ECS image builds push `worker` and `debug` tags for the requested `ecs_version`.
 
 `shared_build_get.yml` resolves artifact locations used by downstream deploy
 wrappers.
 
 - Prod deploy resolution checks `lambdas/<version>/migrations.zip` exists in the shared code bucket.
+- Prod deploy resolution checks `frontend/<version>/frontend.zip` exists in the shared code bucket.
 - Prod deploy resolution checks `worker-<version>` and `debug-<version>` exist in ECR.
 
 ## Shared Infra Wrappers

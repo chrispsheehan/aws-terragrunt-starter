@@ -10,6 +10,9 @@ on:
       ecs_version:
         description: "ECS release tag to deploy e.g. 0.9.4"
         required: true
+      frontend_version:
+        description: "Frontend release tag to deploy; defaults to lambda_version"
+        required: false
 
 permissions:
   id-token: write
@@ -22,6 +25,7 @@ jobs:
     with:
       environment: ci
       lambda_version: ${{ inputs.lambda_version }}
+      frontend_version: ${{ inputs.frontend_version }}
       ecs_version: ${{ inputs.ecs_version }}
 
   deploy:

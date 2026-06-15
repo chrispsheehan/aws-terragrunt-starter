@@ -15,6 +15,7 @@ jobs:
     with:
       environment: dev
       lambda_version: ${{ github.sha }}
+      frontend_version: ${{ github.sha }}
       ecs_version: ${{ github.sha }}
 
   deploy:

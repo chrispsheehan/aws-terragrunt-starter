@@ -9,6 +9,9 @@ on:
       lambda_version:
         required: true
         type: string
+      frontend_version:
+        required: true
+        type: string
       ecs_version:
         required: true
         type: string
@@ -19,6 +22,9 @@ on:
       lambda_version:
         description: "Resolved lambda version"
         value: ${{ inputs.lambda_version }}
+      frontend_version:
+        description: "Resolved frontend version"
+        value: ${{ inputs.frontend_version }}
       ecs_version:
         description: "Resolved ECS version"
         value: ${{ inputs.ecs_version }}
@@ -93,6 +99,29 @@ jobs:
           TG_OUTPUTS: ${{ steps.get-ecr.outputs.tg_outputs }}
         run: |
           echo "ecr_repository_url=$(echo $TG_OUTPUTS | jq -r '.repository_url.value')" >> $GITHUB_OUTPUT
+
+  frontend:
+    name: Frontend
+    needs: bucket
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.frontend_version }}
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ env.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Upload frontend
+        uses: ./.github/actions/just
+        env:
+          BUCKET_NAME: ${{ needs.bucket.outputs.code_bucket_name }}
+          VERSION: ${{ inputs.frontend_version }}
+        with:
+          justfile_path: scripts/deploy/justfile
+          just_action: frontend-build frontend-upload
 
   container-worker:
     name: Worker Image
