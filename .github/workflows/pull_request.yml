@@ -69,6 +69,7 @@ jobs:
       terragrunt: ${{ steps.force_all.outputs.terragrunt || steps.filter.outputs.terragrunt }}
       github: ${{ steps.force_all.outputs.github || steps.filter.outputs.github }}
       lambdas: ${{ steps.force_all.outputs.lambdas || steps.filter.outputs.lambdas }}
+      frontend: ${{ steps.force_all.outputs.frontend || steps.filter.outputs.frontend }}
       containers: ${{ steps.force_all.outputs.containers || steps.filter.outputs.containers }}
     steps:
       - name: Checkout repository
@@ -87,6 +88,7 @@ jobs:
           echo "terragrunt=true" >> "$GITHUB_OUTPUT"
           echo "github=true" >> "$GITHUB_OUTPUT"
           echo "lambdas=true" >> "$GITHUB_OUTPUT"
+          echo "frontend=true" >> "$GITHUB_OUTPUT"
           echo "containers=true" >> "$GITHUB_OUTPUT"
 
       - name: Detect changed files
@@ -111,6 +113,9 @@ jobs:
 
       - shell: bash
         run: echo "lambdas changes - ${{ steps.filter.outputs.lambdas }}"
+
+      - shell: bash
+        run: echo "frontend changes - ${{ steps.filter.outputs.frontend }}"
 
   test-next-version-action:
     name: Next Version Action
@@ -301,6 +306,21 @@ jobs:
         with:
           justfile_path: scripts/deploy/justfile
           just_action: lambda-build
+
+  build-frontend:
+    name: Frontend
+    if: ${{ needs.check.outputs.frontend == 'true' }}
+    needs:
+      - check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build frontend
+        uses: ./.github/actions/just
+        with:
+          justfile_path: scripts/deploy/justfile
+          just_action: frontend-build
 
   build-worker-container:
     name: Worker Image

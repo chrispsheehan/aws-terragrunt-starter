@@ -11,6 +11,7 @@ _default:
 
 PROJECT_DIR := justfile_directory()
 LAMBDA_DIR := "lambdas"
+FRONTEND_DIR := "frontend"
 CONTAINERS_DIR := "containers"
 APPSPEC_DIR := "appspec"
 
@@ -18,6 +19,11 @@ APPSPEC_DIR := "appspec"
 # Return the Lambda artifact directory name.
 code-bucket-get-lambda-artifact-dir:
     @echo {{LAMBDA_DIR}}
+
+
+# Return the frontend artifact directory name.
+code-bucket-get-frontend-artifact-dir:
+    @echo {{FRONTEND_DIR}}
 
 
 # Return the AppSpec artifact directory name.

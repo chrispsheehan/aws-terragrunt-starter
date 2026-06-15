@@ -4,6 +4,7 @@
 
 PROJECT_DIR := `cd ../.. && pwd`
 LAMBDA_DIR := `just --justfile ../../justfile --evaluate LAMBDA_DIR`
+FRONTEND_DIR := `just --justfile ../../justfile --evaluate FRONTEND_DIR`
 APPSPEC_DIR := `just --justfile ../../justfile --evaluate APPSPEC_DIR`
 
 
@@ -159,6 +160,65 @@ lambda-upload:
 
     aws s3 cp "$LAMBDA_ZIP" "s3://$BUCKET_NAME/lambdas/$VERSION/$lambda_artifact_name.zip" \
         --storage-class STANDARD
+
+
+# Build the frontend static assets.
+frontend-build:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "🔄 Cleaning previous builds..."
+    rm -rf "{{PROJECT_DIR}}/{{FRONTEND_DIR}}/dist"
+    echo "📦 Building frontend..."
+    npm install --prefix "{{PROJECT_DIR}}/{{FRONTEND_DIR}}"
+    npm run build --prefix "{{PROJECT_DIR}}/{{FRONTEND_DIR}}"
+
+
+# Upload the frontend build artifact zip to the shared code bucket.
+frontend-upload:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    if [[ -z "$BUCKET_NAME" ]]; then
+        echo "❌ BUCKET_NAME environment variable is not set."
+        exit 1
+    fi
+
+    if [[ -z "$VERSION" ]]; then
+        echo "❌ VERSION environment variable is not set."
+        exit 1
+    fi
+
+    cd "{{PROJECT_DIR}}/{{FRONTEND_DIR}}/dist"
+    zip -r "{{PROJECT_DIR}}/frontend.zip" .
+    aws s3 cp "{{PROJECT_DIR}}/frontend.zip" "s3://$BUCKET_NAME/frontend/$VERSION/frontend.zip"
+    echo "✅ Frontend uploaded to s3://$BUCKET_NAME/frontend/$VERSION/frontend.zip"
+
+
+# Sync a published frontend artifact into the live website bucket.
+frontend-deploy:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    if [[ -z "$BUCKET_NAME" ]]; then
+        echo "❌ BUCKET_NAME environment variable is not set."
+        exit 1
+    fi
+
+    if [[ -z "$VERSION" ]]; then
+        echo "❌ VERSION environment variable is not set."
+        exit 1
+    fi
+
+    if [[ -z "$WEBSITE_BUCKET" ]]; then
+        echo "❌ WEBSITE_BUCKET environment variable is not set."
+        exit 1
+    fi
+
+    TMPDIR="$(mktemp -d)"
+    aws s3 cp "s3://$BUCKET_NAME/frontend/$VERSION/frontend.zip" "$TMPDIR/frontend.zip"
+    unzip -q "$TMPDIR/frontend.zip" -d "$TMPDIR/dist"
+    aws s3 sync "$TMPDIR/dist/" "s3://$WEBSITE_BUCKET/" --delete
+    echo "✅ Frontend deployed to s3://$WEBSITE_BUCKET"
 
 
 # Read the current Lambda alias version.

@@ -52,6 +52,7 @@ outputs, and publishes GitHub releases.
 - Its `check` job runs `.github/actions/get-changes` using the PR base SHA for a PR-style `base...HEAD` diff.
 - Manual `workflow_dispatch` runs force every change flag on and rerun the full validation surface without a PR diff.
 - When `.github/actions/**` changed, it reuses `shared_directories_get.yml` to discover action directories with `Dockerfile`s and runs a Docker unit-test matrix after GitHub formatting.
+- When `frontend/**` changed, it runs the frontend static build through `scripts/deploy/justfile`.
 - When workflow, Terraform, or Terragrunt files change, it runs
   `just tg-graph-waves dev` and fails if the generated wave depth does not
   match the static `wave_N` matrix jobs in the shared infra workflows.
@@ -69,12 +70,14 @@ such as ECR and the code bucket.
 `shared_build.yml` builds and publishes Lambda and ECS artifacts.
 
 - Lambda builds upload `lambdas/migrations` as `migrations.zip`.
+- Frontend builds upload `frontend.zip` under `frontend/<version>/`.
 - ECS image builds push `worker` and `debug` tags for the requested `ecs_version`.
 
 `shared_build_get.yml` resolves artifact locations used by downstream deploy
 wrappers.
 
 - Prod deploy resolution checks `lambdas/<version>/migrations.zip` exists in the shared code bucket.
+- Prod deploy resolution checks `frontend/<version>/frontend.zip` exists in the shared code bucket.
 - Prod deploy resolution checks `worker-<version>` and `debug-<version>` exist in ECR.
 
 ## Shared Infra Wrappers
@@ -167,6 +170,7 @@ That prevents partial real upstream state from suppressing missing mock keys.
 `shared_deploy.yml` rolls out feature code.
 
 - Its `Summary` job writes the fixed code deploy target summary.
+- Syncs the selected frontend artifact into the public S3 website bucket when a frontend version is provided.
 - Publishes the `migrations` Lambda version.
 - Invokes the `migrations` Lambda after CodeDeploy completes.
 - Applies the `task_worker` stack with `worker` and `debug` image URIs.

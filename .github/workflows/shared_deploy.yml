@@ -11,13 +11,18 @@ on:
         description: "Valid lambda version"
         required: true
         type: string
+      frontend_version:
+        description: "Valid frontend version"
+        required: false
+        type: string
+        default: ""
       ecs_version:
         description: "Valid ECS version"
         required: false
         type: string
         default: ""
       code_bucket:
-        description: "Bucket containing lambda artifacts"
+        description: "Bucket containing lambda and frontend artifacts"
         required: true
         type: string
       ecr_repository_url:
@@ -53,6 +58,7 @@ jobs:
         env:
           ENVIRONMENT: ${{ inputs.environment }}
           LAMBDA_VERSION: ${{ inputs.lambda_version }}
+          FRONTEND_VERSION: ${{ inputs.frontend_version }}
           ECS_VERSION: ${{ inputs.ecs_version != '' && inputs.ecs_version || inputs.lambda_version }}
           CODE_BUCKET: ${{ inputs.code_bucket }}
           ECR_REPOSITORY_URL: ${{ inputs.ecr_repository_url }}
@@ -60,16 +66,19 @@ jobs:
           set -euo pipefail
 
           ecr_repository="${ECR_REPOSITORY_URL:-not provided}"
+          frontend_version="${FRONTEND_VERSION:-not provided}"
 
           {
             echo "## Code Deploy Summary"
             echo
             echo "- \`environment\`: \`$ENVIRONMENT\`"
             echo "- \`lambda_version\`: \`$LAMBDA_VERSION\`"
+            echo "- \`frontend_version\`: \`$frontend_version\`"
             echo "- \`ecs_version\`: \`$ECS_VERSION\`"
             echo "- \`code_bucket\`: \`$CODE_BUCKET\`"
             echo "- \`ecr_repository_url\`: \`$ecr_repository\`"
             echo "- \`lambda\`: \`lambdas/migrations -> infra/live/$ENVIRONMENT/aws/migrations\`"
+            echo "- \`frontend\`: \`frontend.zip -> infra/live/$ENVIRONMENT/aws/frontend\`"
             echo "- \`ecs\`: \`worker -> task_worker -> service_worker\`"
             echo "- \`support_image\`: \`debug\`"
           } >> "$GITHUB_STEP_SUMMARY"
@@ -169,6 +178,44 @@ jobs:
         with:
           justfile_path: scripts/deploy/justfile
           just_action: lambda-invoke
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    if: ${{ inputs.frontend_version != '' }}
+    needs:
+      - summary
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ env.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get frontend infra
+        uses: ./.github/actions/terragrunt
+        id: get-infra
+        with:
+          tg_directory: infra/live/${{ inputs.environment }}/aws/frontend
+          tg_action: init
+
+      - name: Get frontend outputs
+        id: get_frontend_outputs
+        env:
+          TG_OUTPUTS: ${{ steps.get-infra.outputs.tg_outputs }}
+        run: |
+          echo "website_bucket=$(echo "$TG_OUTPUTS" | jq -r '.bucket_name.value')" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy frontend
+        uses: ./.github/actions/just
+        env:
+          BUCKET_NAME: ${{ inputs.code_bucket }}
+          VERSION: ${{ inputs.frontend_version }}
+          WEBSITE_BUCKET: ${{ steps.get_frontend_outputs.outputs.website_bucket }}
+        with:
+          justfile_path: scripts/deploy/justfile
+          just_action: frontend-deploy
 
   task-worker:
     name: Worker Task

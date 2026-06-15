@@ -39,6 +39,7 @@ class GetChangesTests(unittest.TestCase):
                 "infra/live/dev/aws/example/terragrunt.hcl",
                 ".github/workflows/pull_request.yml",
                 "lambdas/lambda_api/lambda_handler.py",
+                "frontend/src/index.html",
                 "containers/worker/app.py",
             ]
         )
@@ -50,6 +51,7 @@ class GetChangesTests(unittest.TestCase):
                 "terragrunt": "true",
                 "github": "true",
                 "lambdas": "true",
+                "frontend": "true",
                 "containers": "true",
             },
         )

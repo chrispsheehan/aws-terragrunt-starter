@@ -15,6 +15,7 @@ jobs:
     with:
       environment: dev
       lambda_version: ${{ github.sha }}
+      frontend_version: ${{ github.sha }}
       ecs_version: ${{ github.sha }}
 
   deploy:
@@ -25,6 +26,7 @@ jobs:
     with:
       environment: dev
       lambda_version: ${{ needs.build.outputs.lambda_version }}
+      frontend_version: ${{ needs.build.outputs.frontend_version }}
       ecs_version: ${{ needs.build.outputs.ecs_version }}
       code_bucket: ${{ needs.build.outputs.code_bucket }}
       ecr_repository_url: ${{ needs.build.outputs.ecr_repository_url }}
