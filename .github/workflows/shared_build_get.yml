@@ -10,7 +10,7 @@ on:
         required: true
         type: string
       frontend_version:
-        required: false
+        required: true
         type: string
       ecs_version:
         required: false
@@ -24,7 +24,7 @@ on:
         value: ${{ inputs.lambda_version }}
       frontend_version:
         description: "Resolved frontend version"
-        value: ${{ inputs.frontend_version != '' && inputs.frontend_version || inputs.lambda_version }}
+        value: ${{ inputs.frontend_version }}
       ecs_version:
         description: "Resolved ECS version"
         value: ${{ inputs.ecs_version != '' && inputs.ecs_version || inputs.lambda_version }}
@@ -156,7 +156,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.frontend_version != '' && inputs.frontend_version || inputs.lambda_version }}
+          ref: ${{ inputs.frontend_version }}
 
       - uses: aws-actions/configure-aws-credentials@v6
         with:
@@ -167,7 +167,7 @@ jobs:
         uses: ./.github/actions/just
         env:
           BUCKET_NAME: ${{ needs.bucket.outputs.code_bucket_name }}
-          VERSION: ${{ inputs.frontend_version != '' && inputs.frontend_version || inputs.lambda_version }}
+          VERSION: ${{ inputs.frontend_version }}
         with:
           justfile_path: scripts/ci/justfile
           just_action: frontend-check-version

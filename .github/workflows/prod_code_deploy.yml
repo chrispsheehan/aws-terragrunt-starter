@@ -11,8 +11,8 @@ on:
         description: "ECS release tag to deploy e.g. 0.9.4"
         required: true
       frontend_version:
-        description: "Frontend release tag to deploy; defaults to lambda_version"
-        required: false
+        description: "Frontend release tag to deploy e.g. 0.9.4"
+        required: true
 
 permissions:
   id-token: write
