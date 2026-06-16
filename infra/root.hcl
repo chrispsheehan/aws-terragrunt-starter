@@ -17,7 +17,7 @@ locals {
   project_slug = replace(local.project_name, ".", "-")
 
   aws_region       = local.global_vars.inputs.aws_region
-  base_reference   = "${local.aws_account_id}-${local.aws_region}-${local.project_name}"
+  base_reference   = "${local.aws_account_id}-${local.aws_region}-${local.project_slug}"
   deploy_role_name = "${local.project_name}-${local.environment}-github-oidc-role"
   deploy_role_arn  = "arn:aws:iam::${local.aws_account_id}:role/${local.deploy_role_name}"
   state_bucket     = "${local.base_reference}-tfstate"
