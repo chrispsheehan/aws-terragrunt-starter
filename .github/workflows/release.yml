@@ -102,7 +102,6 @@ jobs:
     needs:
       - create-tag
       - get-next-tag
-      - code
     if: ${{ needs.get-next-tag.outputs.create-new-release == 'true' }}
     uses: ./.github/workflows/shared_build.yml
     permissions:
@@ -113,20 +112,6 @@ jobs:
       lambda_version: ${{ needs.get-next-tag.outputs.tag }}
       frontend_version: ${{ needs.get-next-tag.outputs.tag }}
       ecs_version: ${{ needs.get-next-tag.outputs.tag }}
-
-  code:
-    name: Artifacts
-    needs:
-      - create-tag
-      - get-next-tag
-    if: ${{ needs.get-next-tag.outputs.create-new-release == 'true' }}
-    uses: ./.github/workflows/shared_infra_releases.yml
-    permissions:
-      id-token: write
-      contents: write
-    with:
-      environment: ci
-      infra_version: ${{ needs.get-next-tag.outputs.tag }}
 
   release:
     name: Publish

@@ -59,13 +59,13 @@ outputs, and publishes GitHub releases.
 
 ## Build And Artifact Resolution
 
-`shared_infra_releases.yml` prepares or reads shared artifact infrastructure
-such as ECR and the code bucket.
+`shared_build.yml` prepares shared artifact infrastructure such as ECR and the
+code bucket before publishing artifacts.
 
 - Exposes bucket/repository values as reusable-workflow outputs.
-- The `ecr` job configures AWS credentials once.
+- The build `ecr` and `bucket` jobs apply their live stacks before reading outputs.
 - The Terraform ECR module owns the stable bootstrap `:bootstrap` image through the Docker provider.
-- The code-bucket job reads Lambda, AppSpec, and infra-plan S3 prefix names from `scripts/ci/justfile` recipes and forwards them as `TF_VAR_*`.
+- The code-bucket job reads Lambda and AppSpec S3 prefix names from `scripts/ci/justfile` recipes and forwards them as `TF_VAR_*`.
 
 `shared_build.yml` builds and publishes Lambda and ECS artifacts.
 
@@ -181,7 +181,7 @@ Ownership boundary:
 - `*_infra` wrappers stop at infrastructure apply.
 - `shared_deploy.yml` owns feature-code rollout.
 - Prod wrappers read shared artifact resources from `ci` while applying deploy targets in `prod`.
-- Do not add `shared_infra_releases.yml` to prod deploy wrappers unless the goal is explicitly deploy-time artifact creation.
+- Prod deploy wrappers do not create shared artifact infrastructure; release builds own that path.
 
 ## Destroy
 

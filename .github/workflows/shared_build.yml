@@ -53,18 +53,37 @@ jobs:
       code_bucket_name: ${{ steps.get_bucket_name.outputs.bucket }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.lambda_version }}
 
       - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ env.AWS_OIDC_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Get build artifact bucket
+      - name: Read Lambda artifact dir
+        id: lambda_artifact_dir
+        uses: ./.github/actions/just
+        with:
+          justfile_path: scripts/ci/justfile
+          just_action: code-bucket-get-lambda-artifact-dir
+
+      - name: Read AppSpec artifact dir
+        id: appspec_artifact_dir
+        uses: ./.github/actions/just
+        with:
+          justfile_path: scripts/ci/justfile
+          just_action: code-bucket-get-appspec-artifact-dir
+
+      - name: Apply build artifact bucket
         id: deploy_bucket
         uses: ./.github/actions/terragrunt
+        env:
+          TF_VAR_lambda_artifact_dir: ${{ steps.lambda_artifact_dir.outputs.just_outputs }}
+          TF_VAR_appspec_artifact_dir: ${{ steps.appspec_artifact_dir.outputs.just_outputs }}
         with:
           tg_directory: infra/live/${{ inputs.environment }}/aws/code_bucket
-          tg_action: init
+          tg_action: apply
 
       - name: Get bucket name
         id: get_bucket_name
@@ -87,18 +106,20 @@ jobs:
       ecr_repository_url: ${{ steps.get_ecr_repository_url.outputs.ecr_repository_url }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ecs_version }}
 
       - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ env.AWS_OIDC_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Get ECR infra
+      - name: Apply ECR infra
         id: get-ecr
         uses: ./.github/actions/terragrunt
         with:
           tg_directory: infra/live/${{ inputs.environment }}/aws/ecr
-          tg_action: init
+          tg_action: apply
 
       - name: Get ECR repository url
         id: get_ecr_repository_url
