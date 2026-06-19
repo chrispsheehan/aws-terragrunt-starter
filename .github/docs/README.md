@@ -167,7 +167,7 @@ That prevents partial real upstream state from suppressing missing mock keys.
 
 ## Code Deploy
 
-`shared_deploy.yml` rolls out feature code.
+`shared_code_deploy.yml` rolls out feature code.
 
 - Its `Summary` job writes the fixed code deploy target summary.
 - Syncs the selected frontend artifact into the public S3 website bucket when a frontend version is provided.
@@ -179,7 +179,7 @@ That prevents partial real upstream state from suppressing missing mock keys.
 Ownership boundary:
 
 - `*_infra` wrappers stop at infrastructure apply.
-- `shared_deploy.yml` owns feature-code rollout.
+- `shared_code_deploy.yml` owns feature-code rollout.
 - Prod wrappers read shared artifact resources from `ci` while applying deploy targets in `prod`.
 - Prod deploy wrappers do not create shared artifact infrastructure; release builds own that path.
 
