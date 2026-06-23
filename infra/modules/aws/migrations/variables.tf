@@ -18,6 +18,10 @@ variable "code_bucket" {
   type = string
 }
 
+variable "bootstrap_zip_key" {
+  type = string
+}
+
 variable "otel_sample_rate" {
   type    = number
   default = 1.0

@@ -28,16 +28,6 @@ data "aws_iam_policy_document" "lambda_xray" {
   }
 }
 
-data "archive_file" "bootstrap_lambda" {
-  type                    = "zip"
-  source_content          = <<-PY
-def lambda_handler(event, context):
-    return {"statusCode": 200, "body": "bootstrap"}
-PY
-  source_content_filename = "index.py"
-  output_path             = "${path.module}/bootstrap-lambda.zip"
-}
-
 data "aws_iam_policy_document" "assume_role" {
   statement {
     effect = "Allow"

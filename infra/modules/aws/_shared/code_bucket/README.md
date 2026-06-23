@@ -6,11 +6,13 @@ Shared S3 bucket for deployable artifacts.
 
 - Lambda zip storage
 - AppSpec storage for CodeDeploy
+- shared bootstrap zip object reused by bootstrap Lambda consumers
 
 ## Inputs That Change Behavior
 
 - `lambda_artifact_dir`
 - `appspec_artifact_dir`
+- `lambda_bootstrap_zip_key`
 - `code_artifact_expiration_days`
 
 ## Decision Rules
@@ -22,5 +24,6 @@ Shared S3 bucket for deployable artifacts.
 ## Key outputs
 
 - artifact bucket name
+- shared bootstrap zip key
 
 Used by build, build-get, and deploy workflows.

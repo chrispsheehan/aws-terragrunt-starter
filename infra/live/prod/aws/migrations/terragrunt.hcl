@@ -2,6 +2,17 @@ include "root" {
   path = find_in_parent_folders("root.hcl")
 }
 
+dependency "code_bucket" {
+  config_path = "${get_original_terragrunt_dir()}/../code_bucket"
+
+  mock_outputs = {
+    bootstrap_zip_key = "bootstrap/bootstrap-lambda.zip"
+  }
+
+  mock_outputs_merge_strategy_with_state  = "shallow"
+  mock_outputs_allowed_terraform_commands = ["validate", "plan", "destroy", "init", "show", "graph-dependencies", "output-module-groups"]
+}
+
 dependency "security" {
   config_path = "${get_original_terragrunt_dir()}/../security"
 
@@ -19,5 +30,6 @@ terraform {
 }
 
 inputs = {
+  bootstrap_zip_key       = dependency.code_bucket.outputs.bootstrap_zip_key
   runtime_security_group_id = dependency.security.outputs.runtime_sg
 }
