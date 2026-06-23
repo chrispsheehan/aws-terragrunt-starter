@@ -30,6 +30,6 @@ terraform {
 }
 
 inputs = {
-  bootstrap_zip_key       = dependency.code_bucket.outputs.bootstrap_zip_key
+  bootstrap_zip_key         = dependency.code_bucket.outputs.bootstrap_zip_key
   runtime_security_group_id = dependency.security.outputs.runtime_sg
 }

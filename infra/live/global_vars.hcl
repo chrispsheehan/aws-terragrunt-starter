@@ -1,6 +1,6 @@
 locals {
-  vpc_name   = "vpc"
-  aws_region = "eu-west-2"
+  vpc_name                 = "vpc"
+  aws_region               = "eu-west-2"
   lambda_bootstrap_zip_key = "bootstrap/bootstrap-lambda.zip"
   allowed_role_actions = [
     "s3:*",
