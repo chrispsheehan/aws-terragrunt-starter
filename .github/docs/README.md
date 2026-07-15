@@ -81,7 +81,8 @@ The shared infra plan/apply wrappers execute one environment-wide `tg-all` run
 per workflow.
 
 - `shared_infra_plan.yml` checks out the requested infra ref, configures AWS OIDC, and uses the repo-local Terragrunt action with `tg_action: run_all_plan`.
-- `shared_infra_apply_no_plan.yml` checks out the requested infra ref, sets bootstrap and placeholder artifact vars, and uses the repo-local Terragrunt action with `tg_action: run_all_apply`.
+- `shared_infra_apply_no_plan.yml` checks out the requested infra ref, sets `TF_VAR_bootstrap=true`, and uses the repo-local Terragrunt action with `tg_action: run_all_apply`.
+- `shared_infra_apply_no_plan.yml` checks out the requested infra ref, sets `TF_VAR_bootstrap=true`, and uses the repo-local Terragrunt action with `tg_action: run_all_apply`.
 - `shared_infra_apply_from_plan.yml` downloads `infra-plan-metadata`, recovers the planned `infra_version`, then runs the same single run-all apply flow for that ref through the repo-local Terragrunt action.
 - Run-all exclusion lists are passed into the action as plain JSON arrays of module directory names.
 
@@ -93,8 +94,8 @@ artifact reads, and AWS OIDC:
 - `actions: read` when recovering plan metadata from another run
 
 - Shared infra plan/apply wrappers no longer derive module waves or fan out GitHub matrices.
+- Shared infra plan/apply wrappers exclude `task_worker`; code deploy still owns task-definition rollout and passes the real ECS image URIs.
 - Shared infra plan/apply wrappers still set `TF_VAR_bootstrap=true` for apply so ECS service stacks can create the stable service surface before the first real task revision is deployed.
-- Shared infra plan/apply wrappers also set the same placeholder artifact env vars the old `tg-all` recipe exported: `TF_VAR_lambda_version`, `TF_VAR_image_uri`, and `TF_VAR_debug_uri`.
 
 ## Saved Plans
 

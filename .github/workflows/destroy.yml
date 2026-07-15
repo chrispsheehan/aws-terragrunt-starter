@@ -60,6 +60,10 @@ jobs:
       - name: Destroy all infra with cleanup exclusions
         if: ${{ !inputs.allow_cleanup }}
         uses: ./.github/actions/terragrunt
+        env:
+          TF_VAR_lambda_version: ${{ env.TF_VAR_lambda_version }}
+          TF_VAR_image_uri: ${{ env.TF_VAR_image_uri }}
+          TF_VAR_debug_uri: ${{ env.TF_VAR_debug_uri }}
         with:
           tg_directory: infra/live/${{ inputs.environment }}/aws
           tg_action: run_all_destroy
@@ -68,6 +72,10 @@ jobs:
       - name: Destroy all infra
         if: ${{ inputs.allow_cleanup }}
         uses: ./.github/actions/terragrunt
+        env:
+          TF_VAR_lambda_version: ${{ env.TF_VAR_lambda_version }}
+          TF_VAR_image_uri: ${{ env.TF_VAR_image_uri }}
+          TF_VAR_debug_uri: ${{ env.TF_VAR_debug_uri }}
         with:
           tg_directory: infra/live/${{ inputs.environment }}/aws
           tg_action: run_all_destroy

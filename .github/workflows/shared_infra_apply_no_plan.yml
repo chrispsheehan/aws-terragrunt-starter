@@ -43,9 +43,12 @@ jobs:
 
       - name: Apply all infra
         uses: ./.github/actions/terragrunt
+        env:
+          TF_VAR_bootstrap: ${{ env.TF_VAR_bootstrap }}
         with:
           tg_directory: infra/live/${{ inputs.environment }}
           tg_action: run_all_apply
+          run_all_exclude_dirs: '["task_worker"]'
 
       - name: Write apply summary
         shell: bash
