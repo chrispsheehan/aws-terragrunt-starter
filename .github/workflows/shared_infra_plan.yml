@@ -47,9 +47,10 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Plan all infra
-        uses: ./.github/actions/just
+        uses: ./.github/actions/terragrunt
         with:
-          just_action: tg-all ${{ inputs.environment }} plan
+          tg_directory: infra/live/${{ inputs.environment }}
+          tg_action: run_all_plan
 
       - name: Write plan metadata from workflow inputs
         shell: bash

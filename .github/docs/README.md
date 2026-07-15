@@ -85,9 +85,9 @@ wrappers.
 The shared infra plan/apply wrappers execute one environment-wide `tg-all` run
 per workflow.
 
-- `shared_infra_plan.yml` checks out the requested infra ref, configures AWS OIDC, and runs `just tg-all <environment> plan`.
-- `shared_infra_apply_no_plan.yml` checks out the requested infra ref, sets `TF_VAR_bootstrap=true`, and runs `just tg-all <environment> apply`.
-- `shared_infra_apply_from_plan.yml` downloads `infra-plan-metadata`, recovers the planned `infra_version`, then runs the same single `tg-all` apply flow for that ref.
+- `shared_infra_plan.yml` checks out the requested infra ref, configures AWS OIDC, and uses the repo-local Terragrunt action with `tg_action: run_all_plan`.
+- `shared_infra_apply_no_plan.yml` checks out the requested infra ref, sets bootstrap and placeholder artifact vars, and uses the repo-local Terragrunt action with `tg_action: run_all_apply`.
+- `shared_infra_apply_from_plan.yml` downloads `infra-plan-metadata`, recovers the planned `infra_version`, then runs the same single run-all apply flow for that ref through the repo-local Terragrunt action.
 
 Shared infra wrappers must still forward the permissions needed for checkout,
 artifact reads, and AWS OIDC:
@@ -98,6 +98,7 @@ artifact reads, and AWS OIDC:
 
 - Shared infra plan/apply wrappers no longer derive module waves or fan out GitHub matrices.
 - Shared infra plan/apply wrappers still set `TF_VAR_bootstrap=true` for apply so ECS service stacks can create the stable service surface before the first real task revision is deployed.
+- Shared infra plan/apply wrappers also set the same placeholder artifact env vars the old `tg-all` recipe exported: `TF_VAR_lambda_version`, `TF_VAR_image_uri`, and `TF_VAR_debug_uri`.
 
 `shared_get_modules.yml` still drives destroy-wave discovery and supports these
 filtering inputs:
@@ -122,7 +123,7 @@ filtering inputs:
 the same infrastructure ref that was planned earlier.
 
 - It does not download or replay per-module Terraform plan artifacts.
-- It reruns `tg-all apply` against current remote state for the recorded ref.
+- It reruns the repo-local Terragrunt action in `run_all_apply` mode against current remote state for the recorded ref.
 
 When a live Terragrunt `dependency` block uses `mock_outputs` for planability or
 destroy safety, default it to:

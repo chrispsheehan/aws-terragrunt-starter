@@ -10,7 +10,7 @@ This GitHub Action sets up **Terraform** and **Terragrunt** and runs a specified
 - Installs Terragrunt through `jdx/mise-action@v4`
 - Uses AWS credentials already configured earlier in the same job when needed
 - Optionally passes Terragrunt variables via JSON tfvars
-- Supports `apply`, `plan`, `apply_plan`, `destroy`, `init`, and `graph`
+- Supports `apply`, `plan`, `apply_plan`, `destroy`, `init`, `graph`, `run_all_plan`, and `run_all_apply`
 - Supports `plan` mode for producing local saved plan files
 - Supports `init` mode for outputs-only reads
 - Supports `graph` mode for raw `terragrunt run-all graph-dependencies` output capture
@@ -31,7 +31,7 @@ The Terragrunt install step is kept in this repo-local action rather than hidden
 | `aws_region`       | AWS region                                                                                  | ❌        | `eu-west-2`  |
 | `override_tg_vars` | Override or additional Terragrunt variables in JSON format                                  | ❌        | `{}`         |
 | `tg_directory`     | Directory containing the Terragrunt config                                                  | ✅        | —            |
-| `tg_action`        | Terragrunt action: `apply`, `plan`, `apply_plan`, `destroy`, `init`, or `graph`             | ✅        | `apply`      |
+| `tg_action`        | Terragrunt action: `apply`, `plan`, `apply_plan`, `destroy`, `init`, `graph`, `run_all_plan`, or `run_all_apply` | ✅        | `apply`      |
 
 `override_tg_vars` is written for `apply`, `plan`, and `destroy`, but not for `init`.
 
@@ -62,6 +62,10 @@ The Terragrunt install step is kept in this repo-local action rather than hidden
   Runs `terragrunt init -input=false -reconfigure` and then captures outputs.
 - `graph`
   Runs `terragrunt run-all graph-dependencies --terragrunt-non-interactive --terragrunt-include-external-dependencies --terragrunt-log-level error` and exposes the raw output as `tg_graph_output`.
+- `run_all_plan`
+  Runs `terragrunt run-all --terragrunt-non-interactive plan -input=false -lock=false -compact-warnings`.
+- `run_all_apply`
+  Runs `terragrunt run-all --terragrunt-non-interactive apply -auto-approve -compact-warnings`.
 
 ---
 
