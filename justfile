@@ -206,7 +206,7 @@ tg-all env op:
     export TF_VAR_lambda_version="this"
     export TF_VAR_image_uri="plan-placeholder"
     export TF_VAR_debug_uri="plan-placeholder"
-    terragrunt run-all {{op}}
+    terragrunt run-all --terragrunt-non-interactive {{op}}
 
 
 # Print the raw Terragrunt run-all dependency graph.

@@ -16,22 +16,22 @@ suffix.
 
 ## Concepts
 
-- Waves: Terragrunt dependencies are split into ordered workflow waves. Apply
-  runs foundations first; destroy runs the same waves in reverse. Infra waves
-  exclude `task_*` stacks because code deploy owns ECS task revisions.
+- Waves: Terragrunt dependencies are split into ordered workflow waves for
+  destroy. Infra plan/apply now run as a single `tg-all` operation, while
+  destroy still walks the derived waves in reverse.
 - Bootstrapping: infra applies create the stable runtime surface before real
   application artifacts exist. Placeholder inputs and `TF_VAR_bootstrap=true`
   keep first-time ECS/Lambda applies planable; code deploy rolls real artifacts
   later.
-- Saved plans: plan runs freeze inputs and wave order, then upload one run-level
-  metadata artifact plus one plan artifact per changed stack. Apply-from-plan
-  uses the source run id, skips unchanged stacks, and must run before artifacts
-  expire. Do not apply plans that captured mocked outputs.
+- Planned refs: plan runs upload `infra-plan-metadata` with the requested
+  `environment` and `infra_version`. Apply-from-plan reuses that metadata to
+  apply the same ref later, but it does not replay saved per-module Terraform
+  plan files.
 
 ## Terragrunt Graph Helpers
 
-Use these commands when debugging stack ordering, workflow wave generation, or
-saved-plan metadata joins.
+Use these commands when debugging stack ordering, destroy-wave generation, or
+plan metadata.
 
 Terragrunt derives account-scoped names from `AWS_ACCOUNT_ID`. The repo-root
 `just tg`, `just tg-all`, and `just tg-graph` recipes resolve it with
@@ -54,12 +54,6 @@ To test the wave processor locally through the same split used by CI:
 just tg-graph-waves dev
 ```
 
-To test the infra plan/apply wave filtering used by PR validation:
-
-```sh
-RAW_WAVES_JSON="$(just tg-graph-waves dev)" just --justfile scripts/ci/justfile tg-waves-to-infra-waves
-```
-
 To test the destroy wave filtering used by PR validation:
 
 ```sh
@@ -70,11 +64,9 @@ To run the full static workflow wave-job validation locally:
 
 ```sh
 RAW_WAVES_JSON="$(just tg-graph-waves dev)"
-INFRA_WAVES_JSON="$(RAW_WAVES_JSON="$RAW_WAVES_JSON" just --justfile scripts/ci/justfile tg-waves-to-infra-waves)"
 DESTROY_WAVES_JSON="$(RAW_WAVES_JSON="$RAW_WAVES_JSON" just --justfile scripts/ci/justfile tg-waves-to-destroy-waves)"
 
 RAW_WAVES_JSON="$RAW_WAVES_JSON" \
-INFRA_WAVES_JSON="$INFRA_WAVES_JSON" \
 DESTROY_WAVES_JSON="$DESTROY_WAVES_JSON" \
 just --justfile scripts/ci/justfile tg-validate-static-wave-jobs
 ```
@@ -100,37 +92,14 @@ To process that saved graph file into compact dependency JSON:
 just tg-graph-process graph.json dev
 ```
 
-To return only changed saved-plan items as an object array, set the saved-plan
-env vars and run:
+To inspect the same environment-wide plan path used by CI:
 
 ```sh
-BUCKET_NAME=<code-bucket-name> \
-TG_GRAPH_METADATA_PLAN_RUN_ID=<plan-run-id> \
-just tg-graph-changed-items graph.json dev
+just tg-all dev plan
 ```
 
-To join the processed graph with saved-plan metadata for one plan run, set the
-saved-plan env vars before running the processing command:
+To apply the same environment-wide path used by CI:
 
 ```sh
-BUCKET_NAME=<code-bucket-name> \
-TG_GRAPH_METADATA_PLAN_RUN_ID=<plan-run-id> \
-just tg-graph-process graph.json dev
-```
-
-For a local saved-plan run, pass the Terragrunt operation as one quoted
-argument:
-
-```sh
-just tg dev aws/oidc 'plan -out=terragrunt.tfplan'
-```
-
-The `tg` recipe treats the final argument as the Terragrunt operation string, so
-quoting lets you pass flags such as `-out=...` through the wrapper. The workflow
-saved-plan path expects the binary plan filename to be `terragrunt.tfplan`.
-
-To apply that same saved plan later, reuse the same run id:
-
-```sh
-just tg dev aws/oidc 'apply terragrunt.tfplan'
+just tg-all dev apply
 ```

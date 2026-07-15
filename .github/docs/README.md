@@ -8,12 +8,12 @@ workflows, or workflow-owned `just` behavior.
 | Workflow | Purpose |
 | --- | --- |
 | `dev_infra_apply_no_plan.yml` | Applies dev infrastructure using the current commit as the infra ref. |
-| `dev_infra_plan.yml` | Plans the ordered dev infra graph. |
-| `dev_infra_apply_from_plan.yml` | Applies dev infra from a prior saved-plan run using `plan_artifact_run_id`. |
+| `dev_infra_plan.yml` | Plans dev infrastructure in a single `tg-all` run. |
+| `dev_infra_apply_from_plan.yml` | Applies dev infra for the ref recorded by an earlier plan run. |
 | `dev_code_deploy.yml` | Builds fresh dev artifacts and deploys code to dev. |
-| `prod_infra_plan.yml` | Plans the ordered prod infra graph for the requested infra ref. |
+| `prod_infra_plan.yml` | Plans prod infrastructure in a single `tg-all` run for the requested infra ref. |
 | `prod_infra_apply_no_plan.yml` | Applies prod infrastructure using the pinned infra ref. |
-| `prod_infra_apply_from_plan.yml` | Applies prod infra from a prior saved-plan run. |
+| `prod_infra_apply_from_plan.yml` | Applies prod infra for the ref recorded by an earlier plan run. |
 | `prod_code_deploy.yml` | Resolves released artifacts from `ci` and deploys code to prod. |
 | `destroy.yml` | Tears down infrastructure through the Terragrunt graph in reverse wave order. |
 
@@ -45,7 +45,7 @@ outputs, and publishes GitHub releases.
 
 `pull_request.yml` provides fast validation.
 
-- Checks workflow syntax, Terraform formatting/linting, Terragrunt wave job
+- Checks workflow syntax, Terraform formatting/linting, destroy-wave job
   shape, changed runtime builds, agent-wrapper sync, and direct execution of
   `./.github/actions/get-release-version`.
 - The agent-wrapper sync check verifies `AGENTS.md` and `CLAUDE.md` match the standard wrapper directing agents to `REPO_INSTRUCTIONS.md`.
@@ -55,7 +55,7 @@ outputs, and publishes GitHub releases.
 - When `frontend/**` changed, it runs the frontend static build through `scripts/deploy/justfile`.
 - When workflow, Terraform, or Terragrunt files change, it runs
   `just tg-graph-waves dev` and fails if the generated wave depth does not
-  match the static `wave_N` matrix jobs in the shared infra workflows.
+  match the static `wave_N` jobs in `destroy.yml`.
 
 ## Build And Artifact Resolution
 
@@ -82,27 +82,25 @@ wrappers.
 
 ## Shared Infra Wrappers
 
-The shared infra plan/apply wrappers execute the graph directly.
+The shared infra plan/apply wrappers execute one environment-wide `tg-all` run
+per workflow.
 
-- They delegate graph and wave discovery to `shared_get_modules.yml`.
-- They run `wave_0` through `wave_2` jobs in dependency order.
-- Each wave only runs when its module array is non-empty.
-- Each wave fans modules out as a matrix and invokes the repo-local Terragrunt action against `infra/live/<environment>/aws/<module>`.
+- `shared_infra_plan.yml` checks out the requested infra ref, configures AWS OIDC, and runs `just tg-all <environment> plan`.
+- `shared_infra_apply_no_plan.yml` checks out the requested infra ref, sets `TF_VAR_bootstrap=true`, and runs `just tg-all <environment> apply`.
+- `shared_infra_apply_from_plan.yml` downloads `infra-plan-metadata`, recovers the planned `infra_version`, then runs the same single `tg-all` apply flow for that ref.
 
-Shared infra wrappers must forward permissions required by the nested reusable
-call chain:
+Shared infra wrappers must still forward the permissions needed for checkout,
+artifact reads, and AWS OIDC:
 
-- `id-token: write` everywhere the Terragrunt action may assume AWS OIDC
-- `contents: read` for checkout
+- `id-token: write`
+- `contents: read`
+- `actions: read` when recovering plan metadata from another run
 
-Current infra selection comes from the Terragrunt dependency graph and derived
-waves.
+- Shared infra plan/apply wrappers no longer derive module waves or fan out GitHub matrices.
+- Shared infra plan/apply wrappers still set `TF_VAR_bootstrap=true` for apply so ECS service stacks can create the stable service surface before the first real task revision is deployed.
 
-- Shared infra plan/apply wrappers exclude `task_*` stacks from graph waves because code deploy owns task-definition revision registration and promotion.
-- Shared infra plan/apply wrappers set `TF_VAR_bootstrap=true` so ECS service stacks can create the stable service surface before the first real task revision is deployed.
-- If a live environment is pruned to a smaller or differently shaped dependency closure, run `just tg-graph-waves <env>` and keep the static wave outputs/jobs aligned with the derived dependency depth for that environment.
-
-`shared_get_modules.yml` filtering inputs:
+`shared_get_modules.yml` still drives destroy-wave discovery and supports these
+filtering inputs:
 
 - `ignore_task_modules: true` excludes `task_*` modules from emitted waves.
 - `ignore_shared_artifact_modules: true` omits shared artifact stacks such as `code_bucket` and `ecr`.
@@ -113,48 +111,18 @@ waves.
 
 ## Saved Plans
 
-`shared_infra_plan.yml` is the saved-plan wrapper.
+`shared_infra_plan.yml` uploads one metadata artifact named
+`infra-plan-metadata`.
 
-- Takes resolved workflow inputs directly.
-- Starts `shared_get_modules.yml` to derive current wave outputs.
-- Writes waves plus direct workflow inputs into `plan-metadata.json`.
-- Uploads that file as the GitHub Actions artifact named `infra-plan-metadata`.
-- Runs direct Terragrunt `plan` jobs in dependency-safe wave order.
-- Exposes `plan_artifact_run_id` as a reusable-workflow output.
-- Adds a plan summary showing planned waves and modules whose saved `terragrunt.plan.meta.json` reports `has_changes: true`.
+- `plan-metadata.json` stores the requested `environment` and `infra_version`.
+- `plan_artifact_run_id` still points at the workflow run that produced that metadata.
+- The metadata artifact is retained for 14 days.
 
-`shared_infra_apply_no_plan.yml` is the direct-input apply wrapper.
+`shared_infra_apply_from_plan.yml` uses that metadata only to pin the apply to
+the same infrastructure ref that was planned earlier.
 
-- Takes resolved workflow inputs directly.
-- Derives current graph waves and runs direct Terragrunt `apply` jobs.
-- Uses the module-discovery wave summary so the run page shows environment, infra version, selected module count, and modules grouped by wave before apply jobs run.
-
-`shared_infra_apply_from_plan.yml` is the apply-from-plan wrapper.
-
-- Takes `plan_artifact_run_id`.
-- Downloads `infra-plan-metadata` from the earlier workflow run.
-- Reads frozen graph inputs and saved wave arrays.
-- Reruns the same `wave_0` through `wave_2` module order.
-- Downloads each matching `terragrunt-plan-<environment>-<module>` artifact into the live stack directory before invoking `tg_action: apply_plan`.
-- Filters saved rollout waves through `infra-plan-filter-waves-by-changes` in `scripts/ci/justfile`, so apply excludes modules whose saved `terragrunt.plan.meta.json` reports `has_changes: false`.
-
-Saved infra-plan storage is split into:
-
-- run-level artifact: `infra-plan-metadata`, containing `plan-metadata.json`
-- per-stack artifact: `terragrunt-plan-<environment>-<module>`
-
-The repo-local `./.github/actions/terragrunt` action supports `tg_action: plan`.
-
-- Produces the binary plan in the live stack directory.
-- Writes `terragrunt.plan.meta.json` for every saved plan.
-- Metadata includes `has_changes` and `contains_mocked_outputs`.
-- Writes `terragrunt.plan.txt` alongside the binary plan when the plan has changes.
-- `apply_plan` fails if metadata is missing or `contains_mocked_outputs: true`.
-- The saved plan set is time-limited. `infra-plan-metadata` is uploaded with `retention-days: 14`.
-
-If `apply_plan` is used across separate workflow runs, pass the earlier workflow
-`run_id` through `plan_artifact_run_id`. Recovery only works while the metadata
-and per-stack plan artifacts are still retained.
+- It does not download or replay per-module Terraform plan artifacts.
+- It reruns `tg-all apply` against current remote state for the recorded ref.
 
 When a live Terragrunt `dependency` block uses `mock_outputs` for planability or
 destroy safety, default it to:

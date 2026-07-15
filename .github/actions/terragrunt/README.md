@@ -67,12 +67,8 @@ The Terragrunt install step is kept in this repo-local action rather than hidden
 
 ## 🗂 Saved Plan Layout
 
-One run-level metadata file is stored separately by the shared infra wrapper as a GitHub Actions artifact:
-
-- artifact name: `infra-plan-metadata`
-- file: `plan-metadata.json` containing the frozen workflow inputs and derived `waves`
-
-Each Terragrunt stack or module stores its own plan bundle as a GitHub Actions artifact named `terragrunt-plan-<environment>-<module>`:
+When a workflow chooses to persist a per-stack saved plan produced by this
+action, the Terragrunt stack or module artifact typically contains:
 
 - `terragrunt.plan.meta.json`
 - `terragrunt.tfplan` only when changes exist

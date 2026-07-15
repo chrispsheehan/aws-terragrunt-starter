@@ -242,15 +242,6 @@ jobs:
           aws_region: ${{ env.AWS_REGION }}
           just_action: tg-graph-waves dev
 
-      - name: Build infra wave JSON
-        id: infra_waves
-        uses: ./.github/actions/just
-        env:
-          RAW_WAVES_JSON: ${{ steps.waves.outputs.just_outputs }}
-        with:
-          justfile_path: scripts/ci/justfile
-          just_action: tg-waves-to-infra-waves
-
       - name: Build destroy wave JSON
         id: destroy_waves
         uses: ./.github/actions/just
@@ -260,11 +251,10 @@ jobs:
           justfile_path: scripts/ci/justfile
           just_action: tg-waves-to-destroy-waves
 
-      - name: Validate static wave jobs
+      - name: Validate destroy wave jobs
         uses: ./.github/actions/just
         env:
           RAW_WAVES_JSON: ${{ steps.waves.outputs.just_outputs }}
-          INFRA_WAVES_JSON: ${{ steps.infra_waves.outputs.just_outputs }}
           DESTROY_WAVES_JSON: ${{ steps.destroy_waves.outputs.just_outputs }}
         with:
           justfile_path: scripts/ci/justfile
