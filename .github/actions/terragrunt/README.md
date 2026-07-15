@@ -10,7 +10,7 @@ This GitHub Action sets up **Terraform** and **Terragrunt** and runs a specified
 - Installs Terragrunt through `jdx/mise-action@v4`
 - Uses AWS credentials already configured earlier in the same job when needed
 - Optionally passes Terragrunt variables via JSON tfvars
-- Supports `apply`, `plan`, `apply_plan`, `destroy`, `init`, `graph`, `run_all_plan`, and `run_all_apply`
+- Supports `apply`, `plan`, `apply_plan`, `init`, `graph`, `run_all_plan`, `run_all_apply`, and `run_all_destroy`
 - Supports `plan` mode for producing local saved plan files
 - Supports `init` mode for outputs-only reads
 - Supports `graph` mode for raw `terragrunt run-all graph-dependencies` output capture
@@ -31,9 +31,10 @@ The Terragrunt install step is kept in this repo-local action rather than hidden
 | `aws_region`       | AWS region                                                                                  | ❌        | `eu-west-2`  |
 | `override_tg_vars` | Override or additional Terragrunt variables in JSON format                                  | ❌        | `{}`         |
 | `tg_directory`     | Directory containing the Terragrunt config                                                  | ✅        | —            |
-| `tg_action`        | Terragrunt action: `apply`, `plan`, `apply_plan`, `destroy`, `init`, `graph`, `run_all_plan`, or `run_all_apply` | ✅        | `apply`      |
+| `run_all_exclude_dirs` | JSON array of directories to exclude for run-all actions                                | ❌        | `[]`         |
+| `tg_action`        | Terragrunt action: `apply`, `plan`, `apply_plan`, `init`, `graph`, `run_all_plan`, `run_all_apply`, or `run_all_destroy` | ✅        | `apply`      |
 
-`override_tg_vars` is written for `apply`, `plan`, and `destroy`, but not for `init`.
+`override_tg_vars` is written for `apply` and `plan`, but not for `init`.
 
 ---
 
@@ -56,8 +57,6 @@ The Terragrunt install step is kept in this repo-local action rather than hidden
   Runs `terragrunt plan -detailed-exitcode -out=<live stack>/terragrunt.tfplan`. The action writes `terragrunt.plan.meta.json` for every plan run, including `has_changes` and `contains_mocked_outputs`, and writes `terragrunt.plan.txt` alongside the binary plan when the plan has changes.
 - `apply_plan`
   Runs `terragrunt apply <live stack>/terragrunt.tfplan`. The calling workflow must download that stack's saved plan artifact into the live stack directory before invoking `apply_plan`. The action requires `terragrunt.plan.meta.json` to be present there. If metadata is missing, or if it says `contains_mocked_outputs: true`, the action fails before apply and tells the operator to regenerate the plan from real upstream outputs.
-- `destroy`
-  Runs `terragrunt destroy -auto-approve`.
 - `init`
   Runs `terragrunt init -input=false -reconfigure` and then captures outputs.
 - `graph`
@@ -66,6 +65,12 @@ The Terragrunt install step is kept in this repo-local action rather than hidden
   Runs `terragrunt run-all --terragrunt-non-interactive plan -input=false -lock=false -compact-warnings`.
 - `run_all_apply`
   Runs `terragrunt run-all --terragrunt-non-interactive apply -auto-approve -compact-warnings`.
+- `run_all_destroy`
+  Runs `terragrunt run-all --terragrunt-non-interactive destroy -auto-approve -compact-warnings`.
+
+`run_all_exclude_dirs` is applied to `run_all_plan`, `run_all_apply`, and
+`run_all_destroy` by expanding each JSON array item into one
+`--terragrunt-exclude-dir` flag.
 
 ---
 

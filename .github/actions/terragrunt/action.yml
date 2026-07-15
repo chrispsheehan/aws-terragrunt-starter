@@ -20,8 +20,12 @@ inputs:
   tg_directory:
     description: "Module directory to perform action upon"
     required: true
+  run_all_exclude_dirs:
+    description: "JSON array of directories to exclude for run-all actions"
+    required: false
+    default: "[]"
   tg_action:
-    description: "Terragrunt action to perform (`apply`, `plan`, `apply_plan`, `destroy`, `init`, `graph`, `run_all_plan`, or `run_all_apply`)"
+    description: "Terragrunt action to perform (`apply`, `plan`, `apply_plan`, `init`, `graph`, `run_all_plan`, `run_all_apply`, or `run_all_destroy`)"
     required: true
     default: apply
 
@@ -63,7 +67,7 @@ runs:
       run: terragrunt --version
 
     - name: Normalize and write override_tg_vars
-      if: inputs.tg_action == 'apply' || inputs.tg_action == 'plan' || inputs.tg_action == 'destroy'
+      if: inputs.tg_action == 'apply' || inputs.tg_action == 'plan'
       shell: bash
       env:
         OVERRIDE_TG_VARS: ${{ inputs.override_tg_vars }}
@@ -77,6 +81,7 @@ runs:
         TF_IN_AUTOMATION: true
         TG_PLAN_LOG_FILENAME: terragrunt.plan.log
         TG_PLAN_LOG_ABS_PATH: ${{ github.workspace }}/${{ inputs.tg_directory }}/terragrunt.plan.log
+        TG_RUN_ALL_EXCLUDE_DIRS: ${{ inputs.run_all_exclude_dirs }}
       working-directory: ${{ inputs.tg_directory }}
       run: |
         PLAN_DIR="${{ github.workspace }}/${{ inputs.tg_directory }}"
@@ -88,12 +93,23 @@ runs:
         PLAN_ARTIFACT_DIR="${PLAN_DIR}/terragrunt-plan-artifact"
         PLAN_ARTIFACT_DIR_REL="${{ inputs.tg_directory }}/terragrunt-plan-artifact"
 
+        build_run_all_exclude_args() {
+          local exclude_args=()
+          while IFS= read -r dir; do
+            if [ -n "$dir" ]; then
+              exclude_args+=(--terragrunt-exclude-dir "$dir")
+            fi
+          done < <(jq -r '.[]' <<<"$TG_RUN_ALL_EXCLUDE_DIRS")
+          printf '%s\0' "${exclude_args[@]}"
+        }
+
         case "${{ inputs.tg_action }}" in
           apply)
             terragrunt --terragrunt-non-interactive apply -auto-approve -compact-warnings -var-file=override_tg_vars.tfvars.json
             ;;
           run_all_apply)
-            terragrunt run-all --terragrunt-non-interactive apply -auto-approve -compact-warnings
+            mapfile -d '' RUN_ALL_EXCLUDE_ARGS < <(build_run_all_exclude_args)
+            terragrunt run-all --terragrunt-non-interactive "${RUN_ALL_EXCLUDE_ARGS[@]}" apply -auto-approve -compact-warnings
             ;;
           plan)
             set +e
@@ -159,7 +175,12 @@ runs:
 
             ;;
           run_all_plan)
-            terragrunt run-all --terragrunt-non-interactive plan -input=false -lock=false -compact-warnings
+            mapfile -d '' RUN_ALL_EXCLUDE_ARGS < <(build_run_all_exclude_args)
+            terragrunt run-all --terragrunt-non-interactive "${RUN_ALL_EXCLUDE_ARGS[@]}" plan -input=false -lock=false -compact-warnings
+            ;;
+          run_all_destroy)
+            mapfile -d '' RUN_ALL_EXCLUDE_ARGS < <(build_run_all_exclude_args)
+            terragrunt run-all --terragrunt-non-interactive "${RUN_ALL_EXCLUDE_ARGS[@]}" destroy -auto-approve -compact-warnings
             ;;
           apply_plan)
             if [ ! -f "$PLAN_PATH" ]; then
@@ -206,9 +227,6 @@ runs:
               exit "$apply_exit_code"
             fi
             ;;
-          destroy)
-            terragrunt --terragrunt-non-interactive destroy -auto-approve -compact-warnings -var-file=override_tg_vars.tfvars.json
-            ;;
           init)
             echo "Running init only (no infra changes)..."
             terragrunt --terragrunt-non-interactive init -input=false -reconfigure
@@ -217,7 +235,7 @@ runs:
             echo "Graph mode runs in the dedicated graph step."
             ;;
           *)
-            echo "Unknown tg_action: '${{ inputs.tg_action }}' (expected: apply|plan|apply_plan|destroy|init|graph|run_all_plan|run_all_apply)" >&2
+            echo "Unknown tg_action: '${{ inputs.tg_action }}' (expected: apply|plan|apply_plan|init|graph|run_all_plan|run_all_apply|run_all_destroy)" >&2
             exit 2
             ;;
         esac
@@ -237,7 +255,7 @@ runs:
         echo "✅ Terragrunt graph captured."
 
     - name: Capture Terraform Outputs
-      if: inputs.tg_action != 'destroy' && inputs.tg_action != 'graph' && inputs.tg_action != 'run_all_plan' && inputs.tg_action != 'run_all_apply'
+      if: inputs.tg_action != 'graph' && inputs.tg_action != 'run_all_plan' && inputs.tg_action != 'run_all_apply' && inputs.tg_action != 'run_all_destroy'
       id: tg_outputs
       shell: bash
       working-directory: ${{ inputs.tg_directory }}

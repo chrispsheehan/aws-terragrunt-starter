@@ -16,9 +16,8 @@ suffix.
 
 ## Concepts
 
-- Waves: Terragrunt dependencies are split into ordered workflow waves for
-  destroy. Infra plan/apply now run as a single `tg-all` operation, while
-  destroy still walks the derived waves in reverse.
+- Infra plan/apply/destroy workflows now run as single environment-wide
+  Terragrunt `run-all` operations in CI.
 - Bootstrapping: infra applies create the stable runtime surface before real
   application artifacts exist. Placeholder inputs and `TF_VAR_bootstrap=true`
   keep first-time ECS/Lambda applies planable; code deploy rolls real artifacts
@@ -30,8 +29,8 @@ suffix.
 
 ## Terragrunt Graph Helpers
 
-Use these commands when debugging stack ordering, destroy-wave generation, or
-plan metadata.
+Use these commands when debugging stack ordering, graph output, or plan
+metadata.
 
 Terragrunt derives account-scoped names from `AWS_ACCOUNT_ID`. The repo-root
 `just tg`, `just tg-all`, and `just tg-graph` recipes resolve it with
@@ -48,27 +47,10 @@ To return the direct dependencies for every module as a JSON object:
 just tg-all-module-dependencies dev
 ```
 
-To test the wave processor locally through the same split used by CI:
+To inspect the raw dependency graph locally:
 
 ```sh
-just tg-graph-waves dev
-```
-
-To test the destroy wave filtering used by PR validation:
-
-```sh
-RAW_WAVES_JSON="$(just tg-graph-waves dev)" just --justfile scripts/ci/justfile tg-waves-to-destroy-waves
-```
-
-To run the full static workflow wave-job validation locally:
-
-```sh
-RAW_WAVES_JSON="$(just tg-graph-waves dev)"
-DESTROY_WAVES_JSON="$(RAW_WAVES_JSON="$RAW_WAVES_JSON" just --justfile scripts/ci/justfile tg-waves-to-destroy-waves)"
-
-RAW_WAVES_JSON="$RAW_WAVES_JSON" \
-DESTROY_WAVES_JSON="$DESTROY_WAVES_JSON" \
-just --justfile scripts/ci/justfile tg-validate-static-wave-jobs
+just tg-graph dev
 ```
 
 If you only need the raw Terragrunt graph output:
@@ -102,4 +84,10 @@ To apply the same environment-wide path used by CI:
 
 ```sh
 just tg-all dev apply
+```
+
+To destroy through the same environment-wide path used by CI:
+
+```sh
+just tg-all dev destroy
 ```

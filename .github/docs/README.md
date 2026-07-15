@@ -15,7 +15,7 @@ workflows, or workflow-owned `just` behavior.
 | `prod_infra_apply_no_plan.yml` | Applies prod infrastructure using the pinned infra ref. |
 | `prod_infra_apply_from_plan.yml` | Applies prod infra for the ref recorded by an earlier plan run. |
 | `prod_code_deploy.yml` | Resolves released artifacts from `ci` and deploys code to prod. |
-| `destroy.yml` | Tears down infrastructure through the Terragrunt graph in reverse wave order. |
+| `destroy.yml` | Tears down infrastructure in a single Terragrunt run-all destroy job, then optionally runs tagged-resource cleanup. |
 
 ## Contract Checks
 
@@ -45,18 +45,13 @@ outputs, and publishes GitHub releases.
 
 `pull_request.yml` provides fast validation.
 
-- Checks workflow syntax, Terraform formatting/linting, destroy-wave job
-  shape, changed runtime builds, agent-wrapper sync, and direct execution of
+- Checks workflow syntax, Terraform formatting/linting, changed runtime builds, agent-wrapper sync, and direct execution of
   `./.github/actions/get-release-version`.
 - The agent-wrapper sync check verifies `AGENTS.md` and `CLAUDE.md` match the standard wrapper directing agents to `REPO_INSTRUCTIONS.md`.
 - Its `check` job runs `.github/actions/get-changes` using the PR base SHA for a PR-style `base...HEAD` diff.
 - Manual `workflow_dispatch` runs force every change flag on and rerun the full validation surface without a PR diff.
 - When `.github/actions/**` changed, it reuses `shared_directories_get.yml` to discover action directories with `Dockerfile`s and runs a Docker unit-test matrix after GitHub formatting.
 - When `frontend/**` changed, it runs the frontend static build through `scripts/deploy/justfile`.
-- When workflow, Terraform, or Terragrunt files change, it runs
-  `just tg-graph-waves dev` and fails if the generated wave depth does not
-  match the static `wave_N` jobs in `destroy.yml`.
-
 ## Build And Artifact Resolution
 
 `shared_build.yml` prepares shared artifact infrastructure such as ECR and the
@@ -88,6 +83,7 @@ per workflow.
 - `shared_infra_plan.yml` checks out the requested infra ref, configures AWS OIDC, and uses the repo-local Terragrunt action with `tg_action: run_all_plan`.
 - `shared_infra_apply_no_plan.yml` checks out the requested infra ref, sets bootstrap and placeholder artifact vars, and uses the repo-local Terragrunt action with `tg_action: run_all_apply`.
 - `shared_infra_apply_from_plan.yml` downloads `infra-plan-metadata`, recovers the planned `infra_version`, then runs the same single run-all apply flow for that ref through the repo-local Terragrunt action.
+- Run-all exclusion lists are passed into the action as plain JSON arrays of module directory names.
 
 Shared infra wrappers must still forward the permissions needed for checkout,
 artifact reads, and AWS OIDC:
@@ -99,16 +95,6 @@ artifact reads, and AWS OIDC:
 - Shared infra plan/apply wrappers no longer derive module waves or fan out GitHub matrices.
 - Shared infra plan/apply wrappers still set `TF_VAR_bootstrap=true` for apply so ECS service stacks can create the stable service surface before the first real task revision is deployed.
 - Shared infra plan/apply wrappers also set the same placeholder artifact env vars the old `tg-all` recipe exported: `TF_VAR_lambda_version`, `TF_VAR_image_uri`, and `TF_VAR_debug_uri`.
-
-`shared_get_modules.yml` still drives destroy-wave discovery and supports these
-filtering inputs:
-
-- `ignore_task_modules: true` excludes `task_*` modules from emitted waves.
-- `ignore_shared_artifact_modules: true` omits shared artifact stacks such as `code_bucket` and `ecr`.
-- `ignore_oidc_module: true` excludes `oidc`.
-- `show_wave_summary: false` suppresses the wave overview step summary.
-- `wave_summary_title`, `wave_summary_note`, and `wave_summary_order` label the overview and choose forward or reverse row order.
-- `show_wave_json: true` includes raw wave JSON below the overview for debugging.
 
 ## Saved Plans
 
@@ -154,16 +140,14 @@ Ownership boundary:
 
 ## Destroy
 
-`destroy.yml` tears down infrastructure through the Terragrunt graph in reverse
-shared-infra wave order.
+`destroy.yml` tears down infrastructure through one repo-local Terragrunt
+action run in `run_all_destroy` mode.
 
 - Shares `infra-mutate-<environment>` with mutating apply workflows.
-- Derives current module waves through `shared_get_modules.yml`.
-- Uses filtering inputs to omit `oidc` entirely.
-- Omits `code_bucket` and `ecr` unless `allow_cleanup` is enabled.
-- Writes the shared module-discovery wave summary in reverse order.
-- Runs `wave_2` through `wave_0` in reverse dependency order.
-- The only remaining module-specific destroy placeholder vars are required ECS task image inputs for `task_*`.
+- Always excludes `oidc`.
+- Excludes `code_bucket` and `ecr` unless `allow_cleanup` is enabled.
+- Sets placeholder artifact vars so ECS and Lambda destroy paths stay planable in automation.
+- Writes a short summary showing environment, cleanup mode, and excluded modules before destroy runs.
 
 When `allow_cleanup` is enabled:
 
