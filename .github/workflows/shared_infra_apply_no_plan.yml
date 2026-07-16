@@ -59,5 +59,4 @@ jobs:
             echo "- \`environment\`: \`${{ inputs.environment }}\`"
             echo "- \`infra_version\`: \`${{ inputs.infra_version }}\`"
             echo "- \`bootstrap\`: \`$TF_VAR_bootstrap\`"
-            echo "- `tg-all` applied the full environment in one run."
           } >> "$GITHUB_STEP_SUMMARY"

@@ -78,7 +78,6 @@ jobs:
             echo "- \`environment\`: \`$ENVIRONMENT\`"
             echo "- \`infra_version\`: \`$INFRA_VERSION\`"
             echo "- \`plan_artifact_run_id\`: \`$PLAN_ARTIFACT_RUN_ID\`"
-            echo "- `tg-all` will apply the same infrastructure ref that was planned."
             echo "- This reuses the saved metadata artifact only; it does not replay per-module saved Terraform plans."
           } >> "$GITHUB_STEP_SUMMARY"
 

@@ -84,6 +84,5 @@ jobs:
             echo "- \`environment\`: \`${{ inputs.environment }}\`"
             echo "- \`infra_version\`: \`${{ inputs.infra_version }}\`"
             echo "- \`plan_artifact_run_id\`: \`$PLAN_ARTIFACT_RUN_ID\`"
-            echo "- `tg-all` planned the full environment in one run."
             echo "- The metadata artifact expires after 14 days."
           } >> "$GITHUB_STEP_SUMMARY"
