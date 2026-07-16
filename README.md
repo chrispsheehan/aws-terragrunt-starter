@@ -2,7 +2,7 @@
 
 [![Release](https://img.shields.io/github/v/release/chrispsheehan/aws-terragrunt-starter?display_name=tag&label=Release)](https://github.com/chrispsheehan/aws-terragrunt-starter/releases)
 [![Infra Plan+Apply](https://img.shields.io/github/actions/workflow/status/chrispsheehan/aws-terragrunt-starter/dev_infra_plan_and_apply.yml?label=Infra%20Plan%2BApply)](https://github.com/chrispsheehan/aws-terragrunt-starter/actions/workflows/dev_infra_plan_and_apply.yml)
-[![Infra Apply](https://img.shields.io/github/actions/workflow/status/chrispsheehan/aws-terragrunt-starter/dev_infra_apply_no_plan.yml?label=Infra%20Apply)](https://github.com/chrispsheehan/aws-terragrunt-starter/actions/workflows/dev_infra_apply_no_plan.yml)
+[![Infra Bootstrap](https://img.shields.io/github/actions/workflow/status/chrispsheehan/aws-terragrunt-starter/shared_infra_bootstrap.yml?label=Infra%20Bootstrap)](https://github.com/chrispsheehan/aws-terragrunt-starter/actions/workflows/shared_infra_bootstrap.yml)
 [![Code Deploy](https://img.shields.io/github/actions/workflow/status/chrispsheehan/aws-terragrunt-starter/dev_code_deploy.yml?label=Code%20Deploy)](https://github.com/chrispsheehan/aws-terragrunt-starter/actions/workflows/dev_code_deploy.yml)
 
 AWS Terragrunt starter for multi-environment infrastructure and code deployment, with generated GitHub Actions workflows, OIDC-based AWS access, bootstrap-safe applies, and direct `tg-all` infra plan/apply flows.

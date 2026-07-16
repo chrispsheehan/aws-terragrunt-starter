@@ -18,6 +18,8 @@ suffix.
 
 - Infra plan/apply/destroy workflows now run as single environment-wide
   Terragrunt `run-all` operations in CI.
+- Shared infra apply first seeds the ECR `:bootstrap` image outside Terraform
+  if it is missing, then continues the run-all apply.
 - Infra plan/apply exclude `aws/task_worker`; code deploy still applies that stack
   with concrete image URIs.
 - Bootstrapping: infra applies create the stable runtime surface before real

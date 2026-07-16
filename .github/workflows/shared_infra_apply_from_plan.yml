@@ -1,0 +1,77 @@
+name: Shared Infra Apply From Plan
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: environment reference i.e. 'prod' or 'dev'
+        required: true
+        type: string
+      plan_artifact_run_id:
+        description: "Workflow run ID used to recover plan metadata and apply the recorded infra ref"
+        required: true
+        type: string
+
+concurrency:
+  group: infra-mutate-${{ inputs.environment }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+  actions: read
+
+jobs:
+  resolve_ref:
+    name: Resolve Planned Infra Ref
+    runs-on: ubuntu-latest
+    outputs:
+      infra_version: ${{ steps.metadata.outputs.infra_version }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download plan metadata artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: infra-plan-metadata
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.plan_artifact_run_id }}
+          path: .
+
+      - name: Resolve planned infra ref
+        id: metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ ! -f plan-metadata.json ]; then
+            echo "::error title=Missing plan metadata artifact::Expected artifact 'infra-plan-metadata' containing 'plan-metadata.json' from workflow run '${{ inputs.plan_artifact_run_id }}', but it was not downloaded."
+            exit 1
+          fi
+
+          echo "infra_version=$(jq -r '.infra_version' plan-metadata.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Write apply context
+        shell: bash
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
+          INFRA_VERSION: ${{ steps.metadata.outputs.infra_version }}
+          PLAN_ARTIFACT_RUN_ID: ${{ inputs.plan_artifact_run_id }}
+        run: |
+          {
+            echo "## Infra Apply Context"
+            echo
+            echo "- \`environment\`: \`$ENVIRONMENT\`"
+            echo "- \`infra_version\`: \`$INFRA_VERSION\`"
+            echo "- \`resolution_mode\`: \`planned_ref\`"
+            echo "- \`plan_artifact_run_id\`: \`$PLAN_ARTIFACT_RUN_ID\`"
+            echo "- This reuses the saved metadata artifact only; it does not replay per-module saved Terraform plans."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  apply:
+    needs: resolve_ref
+    name: Apply Planned Infra
+    uses: ./.github/workflows/shared_infra_bootstrap.yml
+    with:
+      environment: ${{ inputs.environment }}
+      infra_version: ${{ needs.resolve_ref.outputs.infra_version }}

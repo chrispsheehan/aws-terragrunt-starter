@@ -7,11 +7,10 @@ workflows, or workflow-owned `just` behavior.
 
 | Workflow | Purpose |
 | --- | --- |
-| `dev_infra_apply_no_plan.yml` | Applies dev infrastructure using the current commit as the infra ref. |
-| `dev_infra_plan_and_apply.yml` | Plans dev infrastructure for the requested ref, then applies the same ref through the shared apply wrapper. |
+| `shared_infra_bootstrap.yml` | Bootstraps infrastructure for the selected environment from the UI or from direct reusable-workflow callers. |
+| `dev_infra_plan_and_apply.yml` | Plans dev infrastructure for the requested ref, then applies the same ref through the shared planned-apply workflow. |
 | `dev_code_deploy.yml` | Builds fresh dev artifacts and deploys code to dev. |
 | `prod_infra_plan.yml` | Plans prod infrastructure in a single `tg-all` run for the requested infra ref. |
-| `prod_infra_apply_no_plan.yml` | Applies prod infrastructure using the pinned infra ref. |
 | `prod_infra_apply_from_plan.yml` | Applies prod infra for the ref recorded by an earlier plan run. |
 | `prod_code_deploy.yml` | Resolves released artifacts from `ci` and deploys code to prod. |
 | `destroy.yml` | Tears down infrastructure in a single Terragrunt run-all destroy job, then optionally runs tagged-resource cleanup. |
@@ -58,7 +57,7 @@ code bucket before publishing artifacts.
 
 - Exposes bucket/repository values as reusable-workflow outputs.
 - The build `ecr` and `bucket` jobs apply their live stacks before reading outputs.
-- The Terraform ECR module owns the stable bootstrap `:bootstrap` image through the Docker provider.
+- Shared infra apply seeds the stable ECR `:bootstrap` image with `nginx:latest` after the ECR repository exists and before bootstrap ECS services are applied.
 - The code-bucket job reads Lambda and AppSpec S3 prefix names from `scripts/ci/justfile` recipes and forwards them as `TF_VAR_*`.
 
 `shared_build.yml` builds and publishes Lambda and ECS artifacts.
@@ -80,7 +79,8 @@ The shared infra plan/apply wrappers execute one environment-wide `tg-all` run
 per workflow.
 
 - `shared_infra_plan.yml` checks out the requested infra ref, configures AWS OIDC, and uses the repo-local Terragrunt action with `tg_action: run_all_plan`.
-- `shared_infra_apply_no_plan.yml` resolves `infra_version` either directly from workflow input or indirectly from `infra-plan-metadata`, sets `TF_VAR_bootstrap=true`, and uses the repo-local Terragrunt action with `tg_action: run_all_apply`.
+- `shared_infra_bootstrap.yml` requires a direct `infra_version`, applies the ECR stack, seeds the stable `:bootstrap` image when missing, sets `TF_VAR_bootstrap=true`, and then uses the repo-local Terragrunt action with `tg_action: run_all_apply`.
+- `shared_infra_apply_from_plan.yml` recovers `infra_version` from `infra-plan-metadata` and then calls the shared bootstrap workflow with that resolved ref.
 - Run-all exclusion lists are passed into the action as plain JSON arrays of module directory names.
 
 Shared infra wrappers must still forward the permissions needed for checkout,
@@ -91,7 +91,7 @@ artifact reads, and AWS OIDC:
 - `actions: read` when recovering plan metadata from another run
 
 - Shared infra plan/apply wrappers no longer derive module waves or fan out GitHub matrices.
-- Shared infra plan/apply wrappers exclude `aws/task_worker`; code deploy still owns task-definition rollout and passes the real ECS image URIs.
+- Shared infra plan excludes `aws/task_worker`; shared infra apply excludes both `aws/ecr` and `aws/task_worker` after performing the targeted ECR bootstrap seed step. Code deploy still owns task-definition rollout and passes the real ECS image URIs.
 - Shared infra plan/apply wrappers still set `TF_VAR_bootstrap=true` for apply so ECS service stacks can create the stable service surface before the first real task revision is deployed.
 
 ## Saved Plans
@@ -103,11 +103,11 @@ artifact reads, and AWS OIDC:
 - `plan_artifact_run_id` still points at the workflow run that produced that metadata.
 - The metadata artifact is retained for 14 days.
 
-`shared_infra_apply_no_plan.yml` can use that metadata to pin apply to the same
+`shared_infra_apply_from_plan.yml` uses that metadata to pin apply to the same
 infrastructure ref that was planned earlier.
 
 - It does not download or replay per-module Terraform plan artifacts.
-- It reruns the repo-local Terragrunt action in `run_all_apply` mode against current remote state for the recorded ref.
+- It ultimately reruns the repo-local Terragrunt action in `run_all_apply` mode against current remote state for the recorded ref.
 
 When a live Terragrunt `dependency` block uses `mock_outputs` for planability or
 destroy safety, default it to:

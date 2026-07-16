@@ -22,7 +22,7 @@ jobs:
   apply:
     needs: plan
     name: Apply Planned Infra
-    uses: ./.github/workflows/shared_infra_apply_no_plan.yml
+    uses: ./.github/workflows/shared_infra_apply_from_plan.yml
     with:
       environment: dev
       plan_artifact_run_id: ${{ needs.plan.outputs.plan_artifact_run_id }}

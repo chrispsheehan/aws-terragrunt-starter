@@ -1,6 +1,5 @@
-# Read-only CI helpers only.
-# This file is for discovery, validation, artifact existence checks, and matrix shaping.
-# Do not put AWS-mutating rollout or deploy commands here.
+# CI helpers for discovery, validation, artifact checks, and selected bootstrap
+# operations used by shared workflows.
 
 PROJECT_DIR := `cd ../.. && pwd`
 LAMBDA_DIR := `just --justfile ../../justfile --evaluate LAMBDA_DIR`
@@ -309,6 +308,40 @@ tf-lint-check:
           echo "🔍 Running tflint in $dir"
           tflint --chdir="$dir" --force
         done
+
+
+# Seed the stable ECR bootstrap image when the target tag is missing.
+ecr-seed-bootstrap-image:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    if [[ -z "${ECR_REPOSITORY_URL:-}" ]]; then
+        echo "❌ ECR_REPOSITORY_URL is required for ecr-seed-bootstrap-image."
+        exit 1
+    fi
+
+    if [[ -z "${ECR_REPOSITORY_NAME:-}" ]]; then
+        echo "❌ ECR_REPOSITORY_NAME is required for ecr-seed-bootstrap-image."
+        exit 1
+    fi
+
+    bootstrap_tag="${BOOTSTRAP_IMAGE_TAG:-bootstrap}"
+    bootstrap_source="${BOOTSTRAP_IMAGE_SOURCE:-nginx:latest}"
+
+    if aws ecr describe-images \
+      --repository-name "$ECR_REPOSITORY_NAME" \
+      --image-ids imageTag="$bootstrap_tag" \
+      >/dev/null 2>&1; then
+        echo "Bootstrap image already present at ${ECR_REPOSITORY_URL}:${bootstrap_tag}."
+        exit 0
+    fi
+
+    aws ecr get-login-password --region "${AWS_REGION:-eu-west-2}" \
+      | docker login --username AWS --password-stdin "$ECR_REPOSITORY_URL"
+
+    docker pull "$bootstrap_source"
+    docker tag "$bootstrap_source" "${ECR_REPOSITORY_URL}:${bootstrap_tag}"
+    docker push "${ECR_REPOSITORY_URL}:${bootstrap_tag}"
 
 
 # Check that the requested Lambda artifact version exists in the code bucket.
