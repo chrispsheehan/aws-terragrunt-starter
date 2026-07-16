@@ -29,7 +29,7 @@ env:
 
 jobs:
   apply:
-    name: Apply
+    name: Apply Infra
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
