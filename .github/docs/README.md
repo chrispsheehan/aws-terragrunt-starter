@@ -8,8 +8,7 @@ workflows, or workflow-owned `just` behavior.
 | Workflow | Purpose |
 | --- | --- |
 | `dev_infra_apply_no_plan.yml` | Applies dev infrastructure using the current commit as the infra ref. |
-| `dev_infra_plan.yml` | Plans dev infrastructure in a single `tg-all` run. |
-| `dev_infra_apply_from_plan.yml` | Applies dev infra for the ref recorded by an earlier plan run. |
+| `dev_infra_plan_and_apply.yml` | Plans dev infrastructure for the requested ref, then applies the same ref through the shared apply wrapper. |
 | `dev_code_deploy.yml` | Builds fresh dev artifacts and deploys code to dev. |
 | `prod_infra_plan.yml` | Plans prod infrastructure in a single `tg-all` run for the requested infra ref. |
 | `prod_infra_apply_no_plan.yml` | Applies prod infrastructure using the pinned infra ref. |
@@ -81,9 +80,7 @@ The shared infra plan/apply wrappers execute one environment-wide `tg-all` run
 per workflow.
 
 - `shared_infra_plan.yml` checks out the requested infra ref, configures AWS OIDC, and uses the repo-local Terragrunt action with `tg_action: run_all_plan`.
-- `shared_infra_apply_no_plan.yml` checks out the requested infra ref, sets `TF_VAR_bootstrap=true`, and uses the repo-local Terragrunt action with `tg_action: run_all_apply`.
-- `shared_infra_apply_no_plan.yml` checks out the requested infra ref, sets `TF_VAR_bootstrap=true`, and uses the repo-local Terragrunt action with `tg_action: run_all_apply`.
-- `shared_infra_apply_from_plan.yml` downloads `infra-plan-metadata`, recovers the planned `infra_version`, then runs the same single run-all apply flow for that ref through the repo-local Terragrunt action.
+- `shared_infra_apply_no_plan.yml` resolves `infra_version` either directly from workflow input or indirectly from `infra-plan-metadata`, sets `TF_VAR_bootstrap=true`, and uses the repo-local Terragrunt action with `tg_action: run_all_apply`.
 - Run-all exclusion lists are passed into the action as plain JSON arrays of module directory names.
 
 Shared infra wrappers must still forward the permissions needed for checkout,
@@ -106,8 +103,8 @@ artifact reads, and AWS OIDC:
 - `plan_artifact_run_id` still points at the workflow run that produced that metadata.
 - The metadata artifact is retained for 14 days.
 
-`shared_infra_apply_from_plan.yml` uses that metadata only to pin the apply to
-the same infrastructure ref that was planned earlier.
+`shared_infra_apply_no_plan.yml` can use that metadata to pin apply to the same
+infrastructure ref that was planned earlier.
 
 - It does not download or replay per-module Terraform plan artifacts.
 - It reruns the repo-local Terragrunt action in `run_all_apply` mode against current remote state for the recorded ref.

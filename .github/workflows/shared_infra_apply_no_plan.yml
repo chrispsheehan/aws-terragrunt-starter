@@ -1,4 +1,4 @@
-name: Shared Infra Apply No Plan
+name: Shared Infra Apply
 
 on:
   workflow_call:
@@ -8,8 +8,12 @@ on:
         required: true
         type: string
       infra_version:
-        description: "Version of infrastructure (terraform) to be applied"
-        required: true
+        description: "Version of infrastructure (terraform) to be applied directly"
+        required: false
+        type: string
+      plan_artifact_run_id:
+        description: "Workflow run ID used to recover plan metadata and apply the recorded infra ref"
+        required: false
         type: string
 
 concurrency:
@@ -28,13 +32,102 @@ env:
   TF_VAR_bootstrap: "true"
 
 jobs:
+  resolve_ref:
+    name: Resolve Infra Ref
+    runs-on: ubuntu-latest
+    outputs:
+      infra_version: ${{ steps.direct.outputs.infra_version || steps.metadata.outputs.infra_version }}
+      resolution_mode: ${{ steps.mode.outputs.resolution_mode }}
+    steps:
+      - name: Validate apply inputs
+        shell: bash
+        env:
+          INFRA_VERSION: ${{ inputs.infra_version }}
+          PLAN_ARTIFACT_RUN_ID: ${{ inputs.plan_artifact_run_id }}
+        run: |
+          set -euo pipefail
+
+          if [[ -n "$INFRA_VERSION" && -n "$PLAN_ARTIFACT_RUN_ID" ]]; then
+            echo "::error title=Conflicting apply inputs::Provide either infra_version or plan_artifact_run_id, not both."
+            exit 1
+          fi
+
+          if [[ -z "$INFRA_VERSION" && -z "$PLAN_ARTIFACT_RUN_ID" ]]; then
+            echo "::error title=Missing apply input::Provide either infra_version or plan_artifact_run_id."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v6
+        if: ${{ inputs.plan_artifact_run_id != '' }}
+
+      - name: Resolve direct infra ref
+        id: direct
+        if: ${{ inputs.infra_version != '' }}
+        shell: bash
+        run: |
+          echo "infra_version=${{ inputs.infra_version }}" >> "$GITHUB_OUTPUT"
+
+      - name: Download plan metadata artifact
+        if: ${{ inputs.plan_artifact_run_id != '' }}
+        uses: actions/download-artifact@v7
+        with:
+          name: infra-plan-metadata
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.plan_artifact_run_id }}
+          path: .
+
+      - name: Resolve planned infra ref
+        id: metadata
+        if: ${{ inputs.plan_artifact_run_id != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ ! -f plan-metadata.json ]; then
+            echo "::error title=Missing plan metadata artifact::Expected artifact 'infra-plan-metadata' containing 'plan-metadata.json' from workflow run '${{ inputs.plan_artifact_run_id }}', but it was not downloaded."
+            exit 1
+          fi
+
+          echo "infra_version=$(jq -r '.infra_version' plan-metadata.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Record resolution mode
+        id: mode
+        shell: bash
+        run: |
+          if [[ -n "${{ inputs.infra_version }}" ]]; then
+            echo "resolution_mode=direct" >> "$GITHUB_OUTPUT"
+          else
+            echo "resolution_mode=planned_ref" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Write summary
+        shell: bash
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
+          INFRA_VERSION: ${{ steps.direct.outputs.infra_version || steps.metadata.outputs.infra_version }}
+          PLAN_ARTIFACT_RUN_ID: ${{ inputs.plan_artifact_run_id }}
+          RESOLUTION_MODE: ${{ steps.mode.outputs.resolution_mode }}
+        run: |
+          {
+            echo "## Infra Apply Context"
+            echo
+            echo "- \`environment\`: \`$ENVIRONMENT\`"
+            echo "- \`infra_version\`: \`$INFRA_VERSION\`"
+            echo "- \`resolution_mode\`: \`$RESOLUTION_MODE\`"
+            if [[ -n "$PLAN_ARTIFACT_RUN_ID" ]]; then
+              echo "- \`plan_artifact_run_id\`: \`$PLAN_ARTIFACT_RUN_ID\`"
+              echo "- This reuses the saved metadata artifact only; it does not replay per-module saved Terraform plans."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
   apply:
+    needs: resolve_ref
     name: Apply Infra
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.infra_version }}
+          ref: ${{ needs.resolve_ref.outputs.infra_version }}
 
       - uses: aws-actions/configure-aws-credentials@v6
         with:
@@ -57,6 +150,6 @@ jobs:
             echo "## Infra Apply Summary"
             echo
             echo "- \`environment\`: \`${{ inputs.environment }}\`"
-            echo "- \`infra_version\`: \`${{ inputs.infra_version }}\`"
+            echo "- \`infra_version\`: \`${{ needs.resolve_ref.outputs.infra_version }}\`"
             echo "- \`bootstrap\`: \`$TF_VAR_bootstrap\`"
           } >> "$GITHUB_STEP_SUMMARY"

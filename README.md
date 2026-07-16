@@ -1,7 +1,7 @@
 # AWS Terragrunt Starter
 
 [![Release](https://img.shields.io/github/v/release/chrispsheehan/aws-terragrunt-starter?display_name=tag&label=Release)](https://github.com/chrispsheehan/aws-terragrunt-starter/releases)
-[![Infra Plan](https://img.shields.io/github/actions/workflow/status/chrispsheehan/aws-terragrunt-starter/dev_infra_plan.yml?label=Infra%20Plan)](https://github.com/chrispsheehan/aws-terragrunt-starter/actions/workflows/dev_infra_plan.yml)
+[![Infra Plan+Apply](https://img.shields.io/github/actions/workflow/status/chrispsheehan/aws-terragrunt-starter/dev_infra_plan_and_apply.yml?label=Infra%20Plan%2BApply)](https://github.com/chrispsheehan/aws-terragrunt-starter/actions/workflows/dev_infra_plan_and_apply.yml)
 [![Infra Apply](https://img.shields.io/github/actions/workflow/status/chrispsheehan/aws-terragrunt-starter/dev_infra_apply_no_plan.yml?label=Infra%20Apply)](https://github.com/chrispsheehan/aws-terragrunt-starter/actions/workflows/dev_infra_apply_no_plan.yml)
 [![Code Deploy](https://img.shields.io/github/actions/workflow/status/chrispsheehan/aws-terragrunt-starter/dev_code_deploy.yml?label=Code%20Deploy)](https://github.com/chrispsheehan/aws-terragrunt-starter/actions/workflows/dev_code_deploy.yml)
 
