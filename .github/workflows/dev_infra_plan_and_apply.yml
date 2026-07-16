@@ -1,0 +1,25 @@
+name: Dev Infra Plan And Apply
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+  actions: read
+
+jobs:
+  plan:
+    name: Plan
+    uses: ./.github/workflows/shared_infra_plan.yml
+    with:
+      environment: dev
+      infra_version: ${{ github.sha }}
+
+  apply:
+    needs: plan
+    name: Apply
+    uses: ./.github/workflows/shared_infra_apply_from_plan.yml
+    with:
+      environment: dev
+      plan_artifact_run_id: ${{ needs.plan.outputs.plan_artifact_run_id }}

@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   infra:
-    name: Apply Planned Infra
+    name: Apply
     uses: ./.github/workflows/shared_infra_apply_from_plan.yml
     with:
       environment: prod

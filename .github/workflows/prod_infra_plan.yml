@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   infra:
-    name: Plan
+    name: Infra
     uses: ./.github/workflows/shared_infra_plan.yml
     with:
       environment: prod

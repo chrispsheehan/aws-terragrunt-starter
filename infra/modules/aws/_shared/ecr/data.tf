@@ -29,5 +29,3 @@ data "aws_ecr_lifecycle_policy_document" "this" {
     }
   }
 }
-
-data "aws_ecr_authorization_token" "this" {}
