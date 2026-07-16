@@ -103,4 +103,4 @@ jobs:
         with:
           tg_directory: infra/live/${{ inputs.environment }}
           tg_action: run_all_apply
-          run_all_exclude_dirs: '["task_worker"]'
+          run_all_exclude_dirs: '["aws/task_worker"]'

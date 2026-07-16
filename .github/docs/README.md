@@ -94,7 +94,7 @@ artifact reads, and AWS OIDC:
 - `actions: read` when recovering plan metadata from another run
 
 - Shared infra plan/apply wrappers no longer derive module waves or fan out GitHub matrices.
-- Shared infra plan/apply wrappers exclude `task_worker`; code deploy still owns task-definition rollout and passes the real ECS image URIs.
+- Shared infra plan/apply wrappers exclude `aws/task_worker`; code deploy still owns task-definition rollout and passes the real ECS image URIs.
 - Shared infra plan/apply wrappers still set `TF_VAR_bootstrap=true` for apply so ECS service stacks can create the stable service surface before the first real task revision is deployed.
 
 ## Saved Plans

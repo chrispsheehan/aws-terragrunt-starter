@@ -18,7 +18,7 @@ suffix.
 
 - Infra plan/apply/destroy workflows now run as single environment-wide
   Terragrunt `run-all` operations in CI.
-- Infra plan/apply exclude `task_worker`; code deploy still applies that stack
+- Infra plan/apply exclude `aws/task_worker`; code deploy still applies that stack
   with concrete image URIs.
 - Bootstrapping: infra applies create the stable runtime surface before real
   application artifacts exist. Placeholder inputs and `TF_VAR_bootstrap=true`
