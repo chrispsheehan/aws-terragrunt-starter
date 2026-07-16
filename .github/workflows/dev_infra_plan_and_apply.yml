@@ -2,6 +2,9 @@ name: Dev Infra Plan And Apply
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - simplify-tg-deploy
 
 permissions:
   id-token: write
