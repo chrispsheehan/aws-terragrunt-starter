@@ -42,7 +42,7 @@ env:
 
 jobs:
   apply:
-    name: Bootstrap Infra
+    name: Infra
     runs-on: ubuntu-latest
     steps:
       - name: Write bootstrap context

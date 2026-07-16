@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   plan:
-    name: Plan Infra
+    name: Plan
     uses: ./.github/workflows/shared_infra_plan.yml
     with:
       environment: dev
@@ -18,7 +18,7 @@ jobs:
 
   apply:
     needs: plan
-    name: Apply Planned Infra
+    name: Apply
     uses: ./.github/workflows/shared_infra_apply_from_plan.yml
     with:
       environment: dev

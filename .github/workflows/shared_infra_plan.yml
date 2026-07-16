@@ -32,7 +32,7 @@ env:
 
 jobs:
   plan:
-    name: Plan Infra
+    name: Infra
     runs-on: ubuntu-latest
     outputs:
       plan_artifact_run_id: ${{ steps.plan_context.outputs.plan_artifact_run_id }}

@@ -70,7 +70,7 @@ jobs:
 
   apply:
     needs: resolve_ref
-    name: Apply Planned Infra
+    name: Infra
     uses: ./.github/workflows/shared_infra_bootstrap.yml
     with:
       environment: ${{ inputs.environment }}
