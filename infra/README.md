@@ -16,22 +16,19 @@ suffix.
 
 ## Concepts
 
-- Waves: Terragrunt dependencies are split into ordered workflow waves. Apply
-  runs foundations first; destroy runs the same waves in reverse. Infra waves
-  exclude `task_*` stacks because code deploy owns ECS task revisions.
 - Bootstrapping: infra applies create the stable runtime surface before real
   application artifacts exist. Placeholder inputs and `TF_VAR_bootstrap=true`
   keep first-time ECS/Lambda applies planable; code deploy rolls real artifacts
   later.
-- Saved plans: plan runs freeze inputs and wave order, then upload one run-level
-  metadata artifact plus one plan artifact per changed stack. Apply-from-plan
-  uses the source run id, skips unchanged stacks, and must run before artifacts
-  expire. Do not apply plans that captured mocked outputs.
+- Saved plans: plan runs write one `terragrunt.tfplan` and one
+  `terragrunt.plan.json` per live stack directory, then upload run-level plan
+  metadata for later apply context. Do not apply plans that captured mocked
+  outputs.
 
 ## Terragrunt Graph Helpers
 
-Use these commands when debugging stack ordering, workflow wave generation, or
-saved-plan metadata joins.
+Use these commands when debugging stack ordering or local Terragrunt graph
+output.
 
 Terragrunt derives account-scoped names from `AWS_ACCOUNT_ID`. The repo-root
 `just tg`, `just tg-all`, and `just tg-graph` recipes resolve it with
@@ -46,37 +43,6 @@ To return the direct dependencies for every module as a JSON object:
 
 ```sh
 just tg-all-module-dependencies dev
-```
-
-To test the wave processor locally through the same split used by CI:
-
-```sh
-just tg-graph-waves dev
-```
-
-To test the infra plan/apply wave filtering used by PR validation:
-
-```sh
-RAW_WAVES_JSON="$(just tg-graph-waves dev)" just --justfile scripts/ci/justfile tg-waves-to-infra-waves
-```
-
-To test the destroy wave filtering used by PR validation:
-
-```sh
-RAW_WAVES_JSON="$(just tg-graph-waves dev)" just --justfile scripts/ci/justfile tg-waves-to-destroy-waves
-```
-
-To run the full static workflow wave-job validation locally:
-
-```sh
-RAW_WAVES_JSON="$(just tg-graph-waves dev)"
-INFRA_WAVES_JSON="$(RAW_WAVES_JSON="$RAW_WAVES_JSON" just --justfile scripts/ci/justfile tg-waves-to-infra-waves)"
-DESTROY_WAVES_JSON="$(RAW_WAVES_JSON="$RAW_WAVES_JSON" just --justfile scripts/ci/justfile tg-waves-to-destroy-waves)"
-
-RAW_WAVES_JSON="$RAW_WAVES_JSON" \
-INFRA_WAVES_JSON="$INFRA_WAVES_JSON" \
-DESTROY_WAVES_JSON="$DESTROY_WAVES_JSON" \
-just --justfile scripts/ci/justfile tg-validate-static-wave-jobs
 ```
 
 If you only need the raw Terragrunt graph output:
@@ -118,19 +84,83 @@ TG_GRAPH_METADATA_PLAN_RUN_ID=<plan-run-id> \
 just tg-graph-process graph.json dev
 ```
 
-For a local saved-plan run, pass the Terragrunt operation as one quoted
-argument:
+For a saved-plan run, pass the Terragrunt operation as one quoted argument:
 
 ```sh
-just tg dev aws/oidc 'plan -out=terragrunt.tfplan'
+just tg dev aws/oidc plan
 ```
 
 The `tg` recipe treats the final argument as the Terragrunt operation string, so
-quoting lets you pass flags such as `-out=...` through the wrapper. The workflow
-saved-plan path expects the binary plan filename to be `terragrunt.tfplan`.
+quoting lets you pass additional flags through the wrapper when needed. The
+shared Terragrunt root always writes `terragrunt.tfplan` into the live stack
+directory, so it lands beside that stack's `terragrunt.hcl` instead of inside
+`.terragrunt-cache`. The workflow saved-plan path expects the binary plan
+filename to be `terragrunt.tfplan`.
+
+For multi-stack saved-plan runs:
+
+```sh
+just tg-all dev plan
+```
+
+That writes one `terragrunt.tfplan` file per live stack directory under
+`infra/live/<env>/**`.
+
+To inspect that saved plan as JSON, use `show` without repeating the filename:
+
+```sh
+just tg dev aws/oidc show
+just tg-all dev show
+```
+
+The shared Terragrunt root adds `-json terragrunt.tfplan` for `show`, so each
+module reads its saved plan file from the live stack directory. An `after_hook`
+also writes that JSON to `terragrunt.plan.json` beside the stack's
+`terragrunt.tfplan`.
+
+To list the modules that produced `terragrunt.plan.json` for one environment:
+
+```sh
+just --justfile scripts/ci/justfile plan-json-files-list-modules dev
+```
+
+That returns an array like:
+
+```json
+["aws/oidc","aws/task_worker"]
+```
+
+To build the per-module `has_changes` summary from that list:
+
+```sh
+MODULE_PATHS_JSON="$(just --justfile scripts/ci/justfile plan-json-files-list-modules dev)" \
+just --justfile scripts/ci/justfile plan-json-files-to-change-summary dev
+```
+
+That returns an array like:
+
+```json
+[{"module":"aws/oidc","has_changes":false},{"module":"aws/task_worker","has_changes":true}]
+```
+
+The summary recipe reads each `infra/live/<env>/<module>/terragrunt.plan.json`,
+matches Terraform resource actions `create`, `update`, and `delete`, and also
+treats non-empty `output_changes` as a change.
 
 To apply that same saved plan later, reuse the same run id:
 
 ```sh
 just tg dev aws/oidc 'apply terragrunt.tfplan'
 ```
+
+To make `terragrunt apply` consume the saved `terragrunt.tfplan`
+automatically for each module, set:
+
+```sh
+TG_USE_SAVED_PLAN=true
+```
+
+The shared Terragrunt root then appends each module's
+`<live stack>/terragrunt.tfplan` path to `apply`. This is intended for the
+saved-plan CI path when restored plan files already exist in the live stack
+directories.

@@ -44,6 +44,7 @@ env:
   AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
   AWS_OIDC_ROLE_ARN: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.PROJECT_NAME }}-${{ inputs.environment }}-github-oidc-role
   AWS_REGION: ${{ vars.AWS_REGION }}
+  TG_VERSION: 0.72.6
 
 jobs:
   bucket:
@@ -61,6 +62,11 @@ jobs:
           role-to-assume: ${{ env.AWS_OIDC_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - uses: gruntwork-io/terragrunt-action@v3
+        with:
+          tg_version: ${{ env.TG_VERSION }}
+          tf_path: terraform
+
       - name: Read Lambda artifact dir
         id: lambda_artifact_dir
         uses: ./.github/actions/just
@@ -76,24 +82,21 @@ jobs:
           just_action: code-bucket-get-appspec-artifact-dir
 
       - name: Apply build artifact bucket
-        id: deploy_bucket
-        uses: ./.github/actions/terragrunt
         env:
           TF_VAR_lambda_artifact_dir: ${{ steps.lambda_artifact_dir.outputs.just_outputs }}
           TF_VAR_appspec_artifact_dir: ${{ steps.appspec_artifact_dir.outputs.just_outputs }}
-        with:
-          tg_directory: infra/live/${{ inputs.environment }}/aws/code_bucket
-          tg_action: apply
+        working-directory: infra/live/${{ inputs.environment }}/aws/code_bucket
+        shell: bash
+        run: terragrunt apply --terragrunt-non-interactive -auto-approve
 
       - name: Get bucket name
         id: get_bucket_name
-        env:
-          TG_OUTPUTS: ${{ steps.deploy_bucket.outputs.tg_outputs  }}
+        working-directory: infra/live/${{ inputs.environment }}/aws/code_bucket
+        shell: bash
         run: |
-          bucket=$(echo "$TG_OUTPUTS" | jq -er '.bucket.value // empty' || true)
+          bucket="$(terragrunt output -raw bucket)"
           if [[ -z "$bucket" ]]; then
             echo "::error title=Missing code bucket output::infra/live/${{ inputs.environment }}/aws/code_bucket did not expose Terraform output 'bucket'. Apply that stack before publishing build artifacts."
-            echo "$TG_OUTPUTS" | jq .
             exit 1
           fi
           echo "bucket=$bucket" >> "$GITHUB_OUTPUT"
@@ -114,19 +117,22 @@ jobs:
           role-to-assume: ${{ env.AWS_OIDC_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Apply ECR infra
-        id: get-ecr
-        uses: ./.github/actions/terragrunt
+      - uses: gruntwork-io/terragrunt-action@v3
         with:
-          tg_directory: infra/live/${{ inputs.environment }}/aws/ecr
-          tg_action: apply
+          tg_version: ${{ env.TG_VERSION }}
+          tf_path: terraform
+
+      - name: Apply ECR infra
+        working-directory: infra/live/${{ inputs.environment }}/aws/ecr
+        shell: bash
+        run: terragrunt apply --terragrunt-non-interactive -auto-approve
 
       - name: Get ECR repository url
         id: get_ecr_repository_url
-        env:
-          TG_OUTPUTS: ${{ steps.get-ecr.outputs.tg_outputs }}
+        working-directory: infra/live/${{ inputs.environment }}/aws/ecr
+        shell: bash
         run: |
-          echo "ecr_repository_url=$(echo $TG_OUTPUTS | jq -r '.repository_url.value')" >> $GITHUB_OUTPUT
+          echo "ecr_repository_url=$(terragrunt output -raw repository_url)" >> "$GITHUB_OUTPUT"
 
   frontend:
     name: Frontend

@@ -1,0 +1,77 @@
+name: Shared Infra Bootstrap Workflow
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: environment reference i.e. 'prod' or 'dev'
+        required: true
+        type: string
+      infra_version:
+        description: "Version of infrastructure (terraform) to be applied"
+        required: true
+        type: string
+
+concurrency:
+  group: infra-mutate-${{ inputs.environment }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+  actions: read
+
+env:
+  AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+  AWS_OIDC_ROLE_ARN: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.PROJECT_NAME }}-${{ inputs.environment }}-github-oidc-role
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  TF_VAR_bootstrap: "true"
+  TG_VERSION: 0.72.6
+
+jobs:
+  bootsrap_infra:
+    name: Bootstrap Infra
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.infra_version }}
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ env.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+    
+      - uses: gruntwork-io/terragrunt-action@v3
+        with:
+          tg_version: ${{ env.TG_VERSION }}
+          tf_path: terraform
+
+      - name: Apply ECR infra
+        working-directory: infra/live/${{ inputs.environment }}
+        shell: bash
+        run: terragrunt run-all apply --terragrunt-non-interactive --terragrunt-include-dir aws/ecr
+
+      - name: Get ECR infra outputs
+        id: get-ecr
+        working-directory: infra/live/${{ inputs.environment }}/aws/ecr
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "repository_url=$(terragrunt output -raw repository_url)" >> "$GITHUB_OUTPUT"
+          echo "repository_name=$(terragrunt output -raw repository_name)" >> "$GITHUB_OUTPUT"
+
+      - name: Seed bootstrap image when missing
+        uses: ./.github/actions/just
+        env:
+          ECR_REPOSITORY_URL: ${{ steps.get-ecr.outputs.repository_url }}
+          ECR_REPOSITORY_NAME: ${{ steps.get-ecr.outputs.repository_name }}
+        with:
+          justfile_path: scripts/ci/justfile
+          just_action: ecr-seed-bootstrap-image
+
+      - name: Terragrunt Apply All
+        working-directory: infra/live/${{ inputs.environment }}
+        shell: bash
+        run: terragrunt run-all apply --terragrunt-non-interactive --terragrunt-exclude-dir aws/task_worker

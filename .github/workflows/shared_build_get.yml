@@ -44,6 +44,7 @@ env:
   AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
   AWS_OIDC_ROLE_ARN: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.PROJECT_NAME }}-${{ inputs.environment }}-github-oidc-role"
   AWS_REGION: ${{ vars.AWS_REGION }}
+  TG_VERSION: 0.72.6
 
 jobs:
   bucket:
@@ -61,26 +62,20 @@ jobs:
           role-to-assume: ${{ env.AWS_OIDC_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Get code bucket outputs
-        uses: ./.github/actions/terragrunt
-        id: code_action
+      - uses: gruntwork-io/terragrunt-action@v3
         with:
-          tg_directory: infra/live/${{ inputs.environment }}/aws/code_bucket
-          tg_action: init
+          tg_version: ${{ env.TG_VERSION }}
+          tf_path: terraform
 
       - name: Get bucket name
         id: get_bucket_name
-        env:
-          TG_OUTPUTS: ${{ steps.code_action.outputs.tg_outputs }}
+        working-directory: infra/live/${{ inputs.environment }}/aws/code_bucket
+        shell: bash
         run: |
-          echo "🔍 Raw TG_OUTPUTS:"
-          echo "$TG_OUTPUTS" | jq .
-
-          bucket=$(echo "$TG_OUTPUTS" | jq -r '.bucket.value // empty')
+          bucket="$(terragrunt output -raw bucket)"
 
           if [ -z "$bucket" ] || [ "$bucket" = "null" ]; then
             echo "::error title=Missing code bucket::Failed to extract '.bucket.value' from Terragrunt output for infra/live/${{ inputs.environment }}/aws/code_bucket"
-            echo "::error::Full TG_OUTPUTS:"
             exit 1
           fi
 
@@ -101,26 +96,20 @@ jobs:
           role-to-assume: ${{ env.AWS_OIDC_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Get ECR infra
-        id: get-ecr
-        uses: ./.github/actions/terragrunt
+      - uses: gruntwork-io/terragrunt-action@v3
         with:
-          tg_directory: infra/live/${{ inputs.environment }}/aws/ecr
-          tg_action: init
+          tg_version: ${{ env.TG_VERSION }}
+          tf_path: terraform
 
       - name: Get ECR repository url
         id: get_ecr_repository_url
-        env:
-          TG_OUTPUTS: ${{ steps.get-ecr.outputs.tg_outputs }}
+        working-directory: infra/live/${{ inputs.environment }}/aws/ecr
+        shell: bash
         run: |
-          echo "🔍 Raw TG_OUTPUTS:"
-          echo "$TG_OUTPUTS" | jq .
-
-          ecr_repository_url=$(echo "$TG_OUTPUTS" | jq -r '.repository_url.value // empty')
+          ecr_repository_url="$(terragrunt output -raw repository_url)"
 
           if [ -z "$ecr_repository_url" ] || [ "$ecr_repository_url" = "null" ]; then
             echo "::error title=Missing ECR repository URL::Failed to extract '.repository_url.value' from Terragrunt output for infra/live/${{ inputs.environment }}/aws/ecr"
-            echo "::error::Full TG_OUTPUTS:"
             exit 1
           fi
 
