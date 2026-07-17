@@ -11,12 +11,12 @@ on:
           - dev
           - prod
       allow_cleanup:
-        description: "Also destroy shared artifact modules and run tagged-resource cleanup"
+        description: "Also run tagged-resource cleanup after destroy"
         required: true
         type: boolean
         default: false
 
-concurrency: # only run one infra apply or destroy at a time for the same environment
+concurrency:
   group: infra-mutate-${{ inputs.environment }}
   cancel-in-progress: false
 
@@ -34,27 +34,9 @@ env:
   AWS_REGION: ${{ vars.AWS_REGION }}
 
 jobs:
-  generate_waves:
-    name: Waves
-    uses: ./.github/workflows/shared_get_modules.yml
-    with:
-      environment: ${{ inputs.environment }}
-      infra_version: ${{ github.sha }}
-      ignore_shared_artifact_modules: ${{ ! inputs.allow_cleanup }}
-      ignore_oidc_module: true
-      wave_summary_title: Destroy Wave Summary
-      wave_summary_note: Destroy runs dependency waves in reverse order. OIDC is excluded; shared artifact modules are included only when cleanup is enabled.
-      wave_summary_order: reverse
-
-  wave_2:
-    name: 2 / ${{ matrix.module }}
-    needs: generate_waves
-    if: ${{ needs.generate_waves.outputs.wave_2_modules != '[]' }}
+  destroy:
+    name: Destroy Infra
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        module: ${{ fromJson(needs.generate_waves.outputs.wave_2_modules) }}
     steps:
       - uses: actions/checkout@v6
 
@@ -63,67 +45,32 @@ jobs:
           role-to-assume: ${{ env.AWS_OIDC_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Destroy ${{ matrix.module }} infra
-        uses: ./.github/actions/terragrunt
+      - uses: gruntwork-io/terragrunt-action@v3
         with:
-          tg_directory: infra/live/${{ inputs.environment }}/aws/${{ matrix.module }}
-          tg_action: destroy
+          tg_version: 0.72.6
+          tf_path: terraform
 
-  wave_1:
-    name: 1 / ${{ matrix.module }}
-    needs:
-      - generate_waves
-      - wave_2
-    if: ${{ always() && needs.generate_waves.outputs.wave_1_modules != '[]' && (needs.wave_2.result == 'success' || needs.wave_2.result == 'skipped') }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        module: ${{ fromJson(needs.generate_waves.outputs.wave_1_modules) }}
-    steps:
-      - uses: actions/checkout@v6
+      - name: Destroy all infra
+        working-directory: infra/live/${{ inputs.environment }}
+        shell: bash
+        run: terragrunt run-all destroy --terragrunt-non-interactive
 
-      - uses: aws-actions/configure-aws-credentials@v6
-        with:
-          role-to-assume: ${{ env.AWS_OIDC_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Destroy ${{ matrix.module }} infra
-        uses: ./.github/actions/terragrunt
-        with:
-          tg_directory: infra/live/${{ inputs.environment }}/aws/${{ matrix.module }}
-          tg_action: destroy
-
-  wave_0:
-    name: 0 / ${{ matrix.module }}
-    needs:
-      - generate_waves
-      - wave_1
-    if: ${{ always() && needs.generate_waves.outputs.wave_0_modules != '[]' && (needs.wave_1.result == 'success' || needs.wave_1.result == 'skipped') }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        module: ${{ fromJson(needs.generate_waves.outputs.wave_0_modules) }}
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: aws-actions/configure-aws-credentials@v6
-        with:
-          role-to-assume: ${{ env.AWS_OIDC_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Destroy ${{ matrix.module }} infra
-        uses: ./.github/actions/terragrunt
-        with:
-          tg_directory: infra/live/${{ inputs.environment }}/aws/${{ matrix.module }}
-          tg_action: destroy
+      - name: Write destroy summary
+        shell: bash
+        run: |
+          {
+            echo "## Destroy Summary"
+            echo
+            echo "- \`environment\`: \`${{ inputs.environment }}\`"
+            echo "- command: \`terragrunt run-all destroy --terragrunt-non-interactive\`"
+            echo "- \`allow_cleanup\`: \`${{ inputs.allow_cleanup }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   cleanup:
     name: Cleanup
     if: inputs.allow_cleanup
     needs:
-      - wave_0
+      - destroy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6

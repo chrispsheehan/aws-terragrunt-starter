@@ -8,14 +8,14 @@ workflows, or workflow-owned `just` behavior.
 | Workflow | Purpose |
 | --- | --- |
 | `dev_infra_apply_no_plan.yml` | Applies dev infrastructure using the current commit as the infra ref. |
-| `dev_infra_plan.yml` | Plans the ordered dev infra graph. |
+| `dev_infra_plan.yml` | Plans all dev infrastructure through Terragrunt `run-all`. |
 | `dev_infra_apply_from_plan.yml` | Applies dev infra from a prior saved-plan run using `plan_artifact_run_id`. |
 | `dev_code_deploy.yml` | Builds fresh dev artifacts and deploys code to dev. |
-| `prod_infra_plan.yml` | Plans the ordered prod infra graph for the requested infra ref. |
+| `prod_infra_plan.yml` | Plans all prod infrastructure for the requested infra ref through Terragrunt `run-all`. |
 | `prod_infra_apply_no_plan.yml` | Applies prod infrastructure using the pinned infra ref. |
 | `prod_infra_apply_from_plan.yml` | Applies prod infra from a prior saved-plan run. |
 | `prod_code_deploy.yml` | Resolves released artifacts from `ci` and deploys code to prod. |
-| `destroy.yml` | Tears down infrastructure through the Terragrunt graph in reverse wave order. |
+| `destroy.yml` | Tears down infrastructure by running `terragrunt run-all destroy`. |
 
 ## Contract Checks
 
@@ -45,17 +45,14 @@ outputs, and publishes GitHub releases.
 
 `pull_request.yml` provides fast validation.
 
-- Checks workflow syntax, Terraform formatting/linting, Terragrunt wave job
-  shape, changed runtime builds, agent-wrapper sync, and direct execution of
+- Checks workflow syntax, Terraform formatting/linting, changed runtime builds,
+  agent-wrapper sync, and direct execution of
   `./.github/actions/get-release-version`.
 - The agent-wrapper sync check verifies `AGENTS.md` and `CLAUDE.md` match the standard wrapper directing agents to `REPO_INSTRUCTIONS.md`.
 - Its `check` job runs `.github/actions/get-changes` using the PR base SHA for a PR-style `base...HEAD` diff.
 - Manual `workflow_dispatch` runs force every change flag on and rerun the full validation surface without a PR diff.
 - When `.github/actions/**` changed, it reuses `shared_directories_get.yml` to discover action directories with `Dockerfile`s and runs a Docker unit-test matrix after GitHub formatting.
 - When `frontend/**` changed, it runs the frontend static build through `scripts/deploy/justfile`.
-- When workflow, Terraform, or Terragrunt files change, it runs
-  `just tg-graph-waves dev` and fails if the generated wave depth does not
-  match the static `wave_N` matrix jobs in the shared infra workflows.
 
 ## Build And Artifact Resolution
 
@@ -82,12 +79,16 @@ wrappers.
 
 ## Shared Infra Wrappers
 
-The shared infra plan/apply wrappers execute the graph directly.
+The shared infra plan/apply/destroy wrappers install Terraform and Terragrunt
+first, then execute Terragrunt across the whole environment.
 
-- They delegate graph and wave discovery to `shared_get_modules.yml`.
-- They run `wave_0` through `wave_2` jobs in dependency order.
-- Each wave only runs when its module array is non-empty.
-- Each wave fans modules out as a matrix and invokes the repo-local Terragrunt action against `infra/live/<environment>/aws/<module>`.
+- They follow the same Terragrunt setup pattern as
+  `shared_bootstrap_infra.yml`.
+- `shared_infra_plan.yml` runs `terragrunt run-all plan`, then
+  `terragrunt run-all show`.
+- `shared_infra_apply_from_plan.yml` downloads the saved plan metadata, checks
+  out the planned infra ref, and then runs `terragrunt run-all apply`.
+- `destroy.yml` runs `terragrunt run-all destroy`.
 
 Shared infra wrappers must forward permissions required by the nested reusable
 call chain:
@@ -95,66 +96,56 @@ call chain:
 - `id-token: write` everywhere the Terragrunt action may assume AWS OIDC
 - `contents: read` for checkout
 
-Current infra selection comes from the Terragrunt dependency graph and derived
-waves.
-
-- Shared infra plan/apply wrappers exclude `task_*` stacks from graph waves because code deploy owns task-definition revision registration and promotion.
-- Shared infra plan/apply wrappers set `TF_VAR_bootstrap=true` so ECS service stacks can create the stable service surface before the first real task revision is deployed.
-- If a live environment is pruned to a smaller or differently shaped dependency closure, run `just tg-graph-waves <env>` and keep the static wave outputs/jobs aligned with the derived dependency depth for that environment.
-
-`shared_get_modules.yml` filtering inputs:
-
-- `ignore_task_modules: true` excludes `task_*` modules from emitted waves.
-- `ignore_shared_artifact_modules: true` omits shared artifact stacks such as `code_bucket` and `ecr`.
-- `ignore_oidc_module: true` excludes `oidc`.
-- `show_wave_summary: false` suppresses the wave overview step summary.
-- `wave_summary_title`, `wave_summary_note`, and `wave_summary_order` label the overview and choose forward or reverse row order.
-- `show_wave_json: true` includes raw wave JSON below the overview for debugging.
+- Shared infra plan/apply wrappers still set `TF_VAR_bootstrap=true` so ECS
+  service stacks can create the stable service surface before the first real
+  task revision is deployed.
 
 ## Saved Plans
 
 `shared_infra_plan.yml` is the saved-plan wrapper.
 
 - Takes resolved workflow inputs directly.
-- Starts `shared_get_modules.yml` to derive current wave outputs.
-- Writes waves plus direct workflow inputs into `plan-metadata.json`.
+- Runs `terragrunt run-all plan`.
+- Runs `terragrunt run-all show` so each stack writes
+  `terragrunt.plan.json` beside `terragrunt.tfplan`.
+- Builds the per-module `has_changes` summary from those saved JSON files.
+- Writes direct workflow inputs plus that change summary into
+  `plan-metadata.json`.
 - Uploads that file as the GitHub Actions artifact named `infra-plan-metadata`.
-- Runs direct Terragrunt `plan` jobs in dependency-safe wave order.
 - Exposes `plan_artifact_run_id` as a reusable-workflow output.
-- Adds a plan summary showing planned waves and modules whose saved `terragrunt.plan.meta.json` reports `has_changes: true`.
+- Adds a plan summary showing the modules whose saved `terragrunt.plan.json`
+  reports `has_changes: true`.
 
 `shared_infra_apply_no_plan.yml` is the direct-input apply wrapper.
 
 - Takes resolved workflow inputs directly.
-- Derives current graph waves and runs direct Terragrunt `apply` jobs.
-- Uses the module-discovery wave summary so the run page shows environment, infra version, selected module count, and modules grouped by wave before apply jobs run.
+- Runs `just tg-all <environment> apply`.
 
 `shared_infra_apply_from_plan.yml` is the apply-from-plan wrapper.
 
 - Takes `plan_artifact_run_id`.
 - Downloads `infra-plan-metadata` from the earlier workflow run.
-- Reads frozen graph inputs and saved wave arrays.
-- Reruns the same `wave_0` through `wave_2` module order.
-- Downloads each matching `terragrunt-plan-<environment>-<module>` artifact into the live stack directory before invoking `tg_action: apply_plan`.
-- Filters saved rollout waves through `infra-plan-filter-waves-by-changes` in `scripts/ci/justfile`, so apply excludes modules whose saved `terragrunt.plan.meta.json` reports `has_changes: false`.
+- Reads the planned `infra_version` and the saved `changed_modules` summary.
+- Checks out that planned `infra_version`.
+- Re-runs `terragrunt run-all apply`.
+- Uses the saved `changed_modules` array as run metadata and operator context.
 
 Saved infra-plan storage is split into:
 
 - run-level artifact: `infra-plan-metadata`, containing `plan-metadata.json`
-- per-stack artifact: `terragrunt-plan-<environment>-<module>`
+- per-stack local files in the checked-out repo: `terragrunt.tfplan` and
+  `terragrunt.plan.json`
 
-The repo-local `./.github/actions/terragrunt` action supports `tg_action: plan`.
+The shared Terragrunt root owns the saved plan paths.
 
-- Produces the binary plan in the live stack directory.
-- Writes `terragrunt.plan.meta.json` for every saved plan.
-- Metadata includes `has_changes` and `contains_mocked_outputs`.
-- Writes `terragrunt.plan.txt` alongside the binary plan when the plan has changes.
-- `apply_plan` fails if metadata is missing or `contains_mocked_outputs: true`.
-- The saved plan set is time-limited. `infra-plan-metadata` is uploaded with `retention-days: 14`.
+- `plan` writes `terragrunt.tfplan` into each live stack directory.
+- `show` reads that file with `terraform show -json` and writes
+  `terragrunt.plan.json` beside it.
+- `infra-plan-metadata` is uploaded with `retention-days: 14`.
 
-If `apply_plan` is used across separate workflow runs, pass the earlier workflow
-`run_id` through `plan_artifact_run_id`. Recovery only works while the metadata
-and per-stack plan artifacts are still retained.
+If apply is deferred to a later workflow run, pass the earlier `run_id` through
+`plan_artifact_run_id`. Recovery only works while the metadata artifact is
+still retained.
 
 When a live Terragrunt `dependency` block uses `mock_outputs` for planability or
 destroy safety, default it to:
@@ -185,15 +176,10 @@ Ownership boundary:
 
 ## Destroy
 
-`destroy.yml` tears down infrastructure through the Terragrunt graph in reverse
-shared-infra wave order.
+`destroy.yml` tears down infrastructure through Terragrunt `run-all`.
 
 - Shares `infra-mutate-<environment>` with mutating apply workflows.
-- Derives current module waves through `shared_get_modules.yml`.
-- Uses filtering inputs to omit `oidc` entirely.
-- Omits `code_bucket` and `ecr` unless `allow_cleanup` is enabled.
-- Writes the shared module-discovery wave summary in reverse order.
-- Runs `wave_2` through `wave_0` in reverse dependency order.
+- Runs `terragrunt run-all destroy`.
 - The only remaining module-specific destroy placeholder vars are required ECS task image inputs for `task_*`.
 
 When `allow_cleanup` is enabled:
