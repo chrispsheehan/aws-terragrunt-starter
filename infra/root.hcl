@@ -50,6 +50,15 @@ terraform {
       "${get_terragrunt_dir()}/terragrunt.tfplan"
     ]
   }
+
+  after_hook "write_show_json_file" {
+    commands = ["show"]
+    execute = [
+      "bash",
+      "-lc",
+      "terraform show -json \"${get_terragrunt_dir()}/terragrunt.tfplan\" > \"${get_terragrunt_dir()}/terragrunt.plan.json\""
+    ]
+  }
 }
 
 remote_state {

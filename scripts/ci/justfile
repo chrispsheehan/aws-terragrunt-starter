@@ -170,6 +170,110 @@ tg-waves-to-destroy-waves:
     ' <<<"$RAW_WAVES_JSON"
 
 
+# Normalize Terragrunt show output into module plan JSON objects.
+# PLAN_JSONS may be either:
+# - a JSON array like:
+#   [{"module":"aws/oidc","plan":{...}},{"module":"aws/task_worker","plan":{...}}]
+# - the raw stdout from `just tg-all <env> show`
+plan-jsons-normalize:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "{{PROJECT_DIR}}"
+
+    if [[ -z "${PLAN_JSONS:-}" ]]; then
+        echo "❌ PLAN_JSONS is required for plan-jsons-normalize."
+        exit 1
+    fi
+
+    normalize_items() {
+        local raw="$1"
+
+        if jq -e . >/dev/null 2>&1 <<<"$raw"; then
+            jq -c . <<<"$raw"
+            return 0
+        fi
+
+        local modules_json plans_json
+
+        modules_json="$(
+            printf '%s\n' "$raw" \
+              | awk '
+                  /^Group [0-9]+$/ { in_groups = 1; next }
+                  in_groups && /^- Module \.\// {
+                    module = $0
+                    sub(/^- Module \.\//, "", module)
+                    print module
+                    next
+                  }
+                  /^\{/ { exit }
+                ' \
+              | jq -Rsc 'split("\n") | map(select(length > 0))'
+        )"
+
+        plans_json="$(
+            printf '%s\n' "$raw" \
+              | awk '/^\{"/ { print }' \
+              | jq -Rsc 'split("\n") | map(select(length > 0) | fromjson)'
+        )"
+
+        jq -cn --argjson modules "$modules_json" --argjson plans "$plans_json" '
+          if ($modules | length) != ($plans | length) then
+            error("Module list and plan JSON count do not match.")
+          else
+            [range(0; $modules | length) | {module: $modules[.], plan: $plans[.]}]
+          end
+        '
+    }
+
+    normalize_items "$PLAN_JSONS"
+
+
+# Build a compact per-module change summary from terragrunt.plan.json files for one environment.
+plan-json-files-to-change-summary environment provider='aws':
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "{{PROJECT_DIR}}"
+
+    env_dir="infra/live/{{environment}}/{{provider}}"
+
+    if [[ ! -d "$env_dir" ]]; then
+        echo "❌ Environment directory not found: $env_dir"
+        exit 1
+    fi
+
+    find "$env_dir" -mindepth 2 -maxdepth 2 -name 'terragrunt.plan.json' -print \
+      | sort \
+      | while IFS= read -r plan_file; do
+          module="${plan_file#infra/live/{{environment}}/}"
+          module="${module%/terragrunt.plan.json}"
+
+          jq -c --arg module_name "$module" '
+            def is_change_action($action):
+              $action == "create"
+              or $action == "update"
+              or $action == "delete";
+
+            def has_resource_changes:
+              any(
+                (.resource_changes // [])[];
+                any(
+                  (.change.actions // [])[];
+                  is_change_action(.)
+                )
+              );
+
+            def has_output_changes:
+              ((.output_changes // {}) | to_entries | length) > 0;
+
+            {
+              module: $module_name,
+              has_changes: (has_resource_changes or has_output_changes)
+            }
+          ' "$plan_file"
+        done \
+      | jq -s -c .
+
+
 # Validate static GitHub workflow wave jobs match generated wave depth.
 tg-validate-static-wave-jobs:
     #!/usr/bin/env bash

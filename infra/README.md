@@ -148,7 +148,26 @@ just tg-all dev show
 ```
 
 The shared Terragrunt root adds `-json terragrunt.tfplan` for `show`, so each
-module reads its saved plan file from the live stack directory.
+module reads its saved plan file from the live stack directory. An `after_hook`
+also writes that JSON to `terragrunt.plan.json` beside the stack's
+`terragrunt.tfplan`.
+
+To build a per-module `has_changes` summary from the generated
+`terragrunt.plan.json` files for one environment:
+
+```sh
+just --justfile scripts/ci/justfile plan-json-files-to-change-summary dev
+```
+
+That returns an array like:
+
+```json
+[{"module":"aws/oidc","has_changes":false},{"module":"aws/task_worker","has_changes":true}]
+```
+
+The recipe reads each `infra/live/<env>/aws/*/terragrunt.plan.json` file,
+matches Terraform resource actions `create`, `update`, and `delete`, and also
+treats non-empty `output_changes` as a change.
 
 To apply that same saved plan later, reuse the same run id:
 
