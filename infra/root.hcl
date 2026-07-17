@@ -26,6 +26,8 @@ locals {
   artifact_base       = local.environment == "dev" ? "${local.base_reference}-${local.environment}" : "${local.base_reference}-ci"
   code_bucket         = "${local.artifact_base}-code"
   ecr_repository_name = "${local.artifact_base}-ecr"
+  use_saved_plan      = get_env("TG_USE_SAVED_PLAN", "false") == "true"
+  saved_plan_path     = "${get_terragrunt_dir()}/terragrunt.tfplan"
 }
 
 terraform {
@@ -39,7 +41,7 @@ terraform {
   extra_arguments "saved_plan_output" {
     commands = ["plan"]
     arguments = [
-      "-out=${get_terragrunt_dir()}/terragrunt.tfplan"
+      "-out=${local.saved_plan_path}"
     ]
   }
 
@@ -47,8 +49,13 @@ terraform {
     commands = ["show"]
     arguments = [
       "-json",
-      "${get_terragrunt_dir()}/terragrunt.tfplan"
+      local.saved_plan_path
     ]
+  }
+
+  extra_arguments "apply_saved_plan" {
+    commands = ["apply"]
+    arguments = local.use_saved_plan ? [local.saved_plan_path] : []
   }
 
   after_hook "write_show_json_file" {
@@ -56,7 +63,7 @@ terraform {
     execute = [
       "bash",
       "-lc",
-      "terraform show -json \"${get_terragrunt_dir()}/terragrunt.tfplan\" > \"${get_terragrunt_dir()}/terragrunt.plan.json\""
+      "terraform show -json \"${local.saved_plan_path}\" > \"${get_terragrunt_dir()}/terragrunt.plan.json\""
     ]
   }
 }

@@ -125,11 +125,18 @@ call chain:
 `shared_infra_apply_from_plan.yml` is the apply-from-plan wrapper.
 
 - Takes `plan_artifact_run_id`.
-- Downloads `infra-plan-metadata` from the earlier workflow run.
+- Downloads `infra-plan-metadata` and `infra-plan-files` from the earlier
+  workflow run.
 - Reads the planned `infra_version` and the saved `changed_modules` summary.
+- Exits early with a workflow warning when the saved metadata reports no
+  changed modules overall.
 - Checks out that planned `infra_version`.
-- Re-runs `terragrunt run-all apply`.
-- Uses the saved `changed_modules` array as run metadata and operator context.
+- Restores the saved `terragrunt.tfplan` and `terragrunt.plan.json` files into
+  their original live stack paths.
+- Applies each changed module with
+  `terragrunt apply --terragrunt-non-interactive terragrunt.tfplan`.
+- Uses the saved `changed_modules` array as the apply selection and operator
+  context.
 
 Saved infra-plan storage is split into:
 
@@ -143,12 +150,14 @@ The shared Terragrunt root owns the saved plan paths.
 - `plan` writes `terragrunt.tfplan` into each live stack directory.
 - `show` reads that file with `terraform show -json` and writes
   `terragrunt.plan.json` beside it.
+- When `TG_USE_SAVED_PLAN=true`, `apply` appends each module's local
+  `terragrunt.tfplan` path automatically.
 - `infra-plan-metadata` and `infra-plan-files` are uploaded with
   `retention-days: 14`.
 
 If apply is deferred to a later workflow run, pass the earlier `run_id` through
-`plan_artifact_run_id`. Recovery only works while the metadata artifact is
-still retained.
+`plan_artifact_run_id`. Recovery only works while the metadata and plan-files
+artifacts are still retained.
 
 When a live Terragrunt `dependency` block uses `mock_outputs` for planability or
 destroy safety, default it to:

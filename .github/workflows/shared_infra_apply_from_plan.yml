@@ -29,7 +29,7 @@ env:
 
 jobs:
   apply:
-    name: Apply Infra From Plan Context
+    name: Apply Infra From Saved Plans
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -57,26 +57,108 @@ jobs:
           echo "infra_version=$(jq -r '.infra_version' plan-metadata.json)" >> "$GITHUB_OUTPUT"
           echo "changed_modules=$(jq -c '.changed_modules // []' plan-metadata.json)" >> "$GITHUB_OUTPUT"
 
+      - name: Exit early when no saved changes were recorded
+        id: change_check
+        shell: bash
+        env:
+          CHANGED_MODULES_JSON: ${{ steps.metadata.outputs.changed_modules }}
+        run: |
+          set -euo pipefail
+
+          changed_count="$(jq '[.[] | select(.has_changes == true)] | length' <<<"$CHANGED_MODULES_JSON")"
+
+          if [[ "$changed_count" == "0" ]]; then
+            echo "::warning title=No saved plan changes::The saved plan metadata contains no modules with changes. Skipping apply."
+            echo "should_apply=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "## Apply From Plan Summary"
+              echo
+              echo "- \`environment\`: \`${{ inputs.environment }}\`"
+              echo "- \`infra_version\`: \`${{ steps.metadata.outputs.infra_version }}\`"
+              echo "- \`plan_artifact_run_id\`: \`${{ inputs.plan_artifact_run_id }}\`"
+              echo "- result: no saved changes detected; apply skipped"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "should_apply=true" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@v6
+        if: steps.change_check.outputs.should_apply == 'true'
         with:
           ref: ${{ steps.metadata.outputs.infra_version }}
 
+      - name: Download plan files artifact
+        if: steps.change_check.outputs.should_apply == 'true'
+        uses: actions/download-artifact@v7
+        with:
+          name: infra-plan-files
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.plan_artifact_run_id }}
+          path: .
+
+      - name: Check restored plan files
+        if: steps.change_check.outputs.should_apply == 'true'
+        shell: bash
+        run: |
+          plan_files="$(find "infra/live/${{ inputs.environment }}" -name terragrunt.tfplan -print | sort)"
+
+          if [[ -z "$plan_files" ]]; then
+            echo "::error title=Missing saved plan files::Expected artifact 'infra-plan-files' containing terragrunt.tfplan files from workflow run '${{ inputs.plan_artifact_run_id }}', but none were restored."
+            exit 1
+          fi
+
+          printf '%s\n' "$plan_files"
+
       - uses: aws-actions/configure-aws-credentials@v6
+        if: steps.change_check.outputs.should_apply == 'true'
         with:
           role-to-assume: ${{ env.AWS_OIDC_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - uses: gruntwork-io/terragrunt-action@v3
+        if: steps.change_check.outputs.should_apply == 'true'
         with:
           tg_version: 0.72.6
           tf_path: terraform
 
-      - name: Apply all infra from saved plan context
-        working-directory: infra/live/${{ inputs.environment }}
+      - name: Apply changed saved plans
+        if: steps.change_check.outputs.should_apply == 'true'
         shell: bash
-        run: terragrunt run-all apply --terragrunt-non-interactive
+        env:
+          CHANGED_MODULES_JSON: ${{ steps.metadata.outputs.changed_modules }}
+        run: |
+          set -euo pipefail
+
+          changed_modules="$(
+            jq -r '.[] | select(.has_changes == true) | .module' <<<"$CHANGED_MODULES_JSON"
+          )"
+
+          if [[ -z "$changed_modules" ]]; then
+            echo "No changed modules recorded by the saved plan."
+            exit 0
+          fi
+
+          while IFS= read -r module; do
+            [[ -n "$module" ]] || continue
+
+            module_dir="infra/live/${{ inputs.environment }}/${module}"
+            plan_file="$module_dir/terragrunt.tfplan"
+
+            if [[ ! -f "$plan_file" ]]; then
+              echo "::error title=Missing module plan file::Expected '$plan_file' for module '$module'."
+              exit 1
+            fi
+
+            echo "Applying saved plan for $module"
+            (
+              cd "$module_dir"
+              terragrunt apply --terragrunt-non-interactive terragrunt.tfplan
+            )
+          done <<<"$changed_modules"
 
       - name: Write apply summary
+        if: steps.change_check.outputs.should_apply == 'true'
         env:
           CHANGED_MODULES_JSON: ${{ steps.metadata.outputs.changed_modules }}
         shell: bash
@@ -87,7 +169,7 @@ jobs:
             echo "- \`environment\`: \`${{ inputs.environment }}\`"
             echo "- \`infra_version\`: \`${{ steps.metadata.outputs.infra_version }}\`"
             echo "- \`plan_artifact_run_id\`: \`${{ inputs.plan_artifact_run_id }}\`"
-            echo "- command: \`terragrunt run-all apply --terragrunt-non-interactive\`"
+            echo "- command: \`terragrunt apply --terragrunt-non-interactive terragrunt.tfplan\` per changed module"
             echo
             echo 'Changed modules recorded by the plan run:'
             echo

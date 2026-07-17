@@ -152,3 +152,15 @@ To apply that same saved plan later, reuse the same run id:
 ```sh
 just tg dev aws/oidc 'apply terragrunt.tfplan'
 ```
+
+To make `terragrunt apply` consume the saved `terragrunt.tfplan`
+automatically for each module, set:
+
+```sh
+TG_USE_SAVED_PLAN=true
+```
+
+The shared Terragrunt root then appends each module's
+`<live stack>/terragrunt.tfplan` path to `apply`. This is intended for the
+saved-plan CI path when restored plan files already exist in the live stack
+directories.
