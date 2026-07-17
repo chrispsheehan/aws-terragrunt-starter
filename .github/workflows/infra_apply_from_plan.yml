@@ -1,4 +1,4 @@
-name: Shared Infra Apply From Plan
+name: Infra Apply From Plan
 
 on:
   workflow_dispatch:
@@ -14,17 +14,6 @@ on:
         description: "Workflow run ID used to recover plan metadata"
         required: true
         type: string
-  workflow_call:
-    inputs:
-      environment:
-        description: environment reference i.e. 'prod' or 'dev'
-        required: true
-        type: string
-      plan_artifact_run_id:
-        description: "Workflow run ID used to recover plan metadata"
-        required: true
-        type: string
-
 concurrency:
   group: infra-mutate-${{ inputs.environment || github.event.inputs.environment }}
   cancel-in-progress: false

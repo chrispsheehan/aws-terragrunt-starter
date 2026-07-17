@@ -10,8 +10,8 @@ workflows, or workflow-owned `just` behavior.
 | `dev_code_deploy.yml` | Builds fresh dev artifacts and deploys code to dev. |
 | `prod_code_deploy.yml` | Resolves released artifacts from `ci` and deploys code to prod. |
 | `destroy.yml` | Tears down infrastructure by running `terragrunt run-all destroy`. |
-| `shared_infra_plan.yml` | Shared infra plan workflow. Can be called by other workflows or run manually from the Actions UI with `environment` and `infra_version` inputs. |
-| `shared_infra_apply_from_plan.yml` | Shared saved-plan apply workflow. Can be called by other workflows or run manually from the Actions UI with `environment` and `plan_artifact_run_id` inputs. |
+| `infra_plan.yml` | Infra plan workflow. Run manually from the Actions UI with `environment` and `infra_version` inputs. |
+| `infra_apply_from_plan.yml` | Saved-plan apply workflow. Run manually from the Actions UI with `environment` and `plan_artifact_run_id` inputs. |
 
 ## Contract Checks
 
@@ -80,9 +80,9 @@ first, then execute Terragrunt across the whole environment.
 
 - They follow the same Terragrunt setup pattern as
   `shared_bootstrap_infra.yml`.
-- `shared_infra_plan.yml` runs `terragrunt run-all plan`, then
+- `infra_plan.yml` runs `terragrunt run-all plan`, then
   `terragrunt run-all show`.
-- `shared_infra_apply_from_plan.yml` downloads the saved plan metadata, checks
+- `infra_apply_from_plan.yml` downloads the saved plan metadata, checks
   out the planned infra ref, and then runs `terragrunt run-all apply`.
 - `destroy.yml` runs `terragrunt run-all destroy`.
 
@@ -98,7 +98,7 @@ call chain:
 
 ## Saved Plans
 
-`shared_infra_plan.yml` is the saved-plan wrapper.
+`infra_plan.yml` is the saved-plan wrapper.
 
 - Takes resolved workflow inputs directly.
 - Runs `terragrunt run-all plan`.
@@ -114,12 +114,7 @@ call chain:
 - Adds a plan summary showing the modules whose saved `terragrunt.plan.json`
   reports `has_changes: true`.
 
-`shared_infra_apply_no_plan.yml` is the direct-input apply wrapper.
-
-- Takes resolved workflow inputs directly.
-- Runs `just tg-all <environment> apply`.
-
-`shared_infra_apply_from_plan.yml` is the apply-from-plan wrapper.
+`infra_apply_from_plan.yml` is the apply-from-plan wrapper.
 
 - Takes `plan_artifact_run_id`.
 - Downloads `infra-plan-metadata` and `infra-plan-files` from the earlier
