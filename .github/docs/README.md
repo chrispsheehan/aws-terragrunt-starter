@@ -9,7 +9,7 @@ workflows, or workflow-owned `just` behavior.
 | --- | --- |
 | `dev_code_deploy.yml` | Builds fresh dev artifacts and deploys code to dev. |
 | `prod_code_deploy.yml` | Resolves released artifacts from `ci` and deploys code to prod. |
-| `destroy.yml` | Tears down infrastructure by running `terragrunt run-all destroy`. |
+| `destroy.yml` | Tears down infrastructure by running `terragrunt run-all destroy`, excluding `aws/oidc`. |
 | `infra_bootstrap.yml` | Bootstrap workflow. Run manually from the Actions UI with `environment` and `infra_version` inputs. |
 | `infra_plan.yml` | Infra plan workflow. Run manually from the Actions UI with `environment` and `infra_version` inputs. |
 | `infra_apply.yml` | Saved-plan apply workflow. Run manually from the Actions UI with `environment` and `plan_artifact_run_id` inputs. |
@@ -85,7 +85,7 @@ first, then execute Terragrunt across the whole environment.
   `terragrunt run-all show`, excluding `aws/task_worker`.
 - `infra_apply.yml` downloads the saved plan metadata, checks
   out the planned infra ref, and then runs `terragrunt run-all apply`.
-- `destroy.yml` runs `terragrunt run-all destroy`.
+- `destroy.yml` runs `terragrunt run-all destroy`, excluding `aws/oidc`.
 - `infra_bootstrap.yml` first applies `aws/ecr`, seeds the stable bootstrap
   image when missing, and then runs the full bootstrap apply.
 
@@ -189,7 +189,8 @@ Ownership boundary:
 `destroy.yml` tears down infrastructure through Terragrunt `run-all`.
 
 - Shares `infra-mutate-<environment>` with mutating apply workflows.
-- Runs `terragrunt run-all destroy`.
+- Runs `terragrunt run-all destroy`, excluding `aws/oidc`.
+- Retains `aws/oidc` as protected deployment scaffolding for the environment.
 - The only remaining module-specific destroy placeholder vars are required ECS task image inputs for `task_*`.
 
 When `allow_cleanup` is enabled:
