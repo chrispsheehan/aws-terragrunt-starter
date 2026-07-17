@@ -11,7 +11,7 @@ workflows, or workflow-owned `just` behavior.
 | `prod_code_deploy.yml` | Resolves released artifacts from `ci` and deploys code to prod. |
 | `destroy.yml` | Tears down infrastructure by running `terragrunt run-all destroy`. |
 | `infra_plan.yml` | Infra plan workflow. Run manually from the Actions UI with `environment` and `infra_version` inputs. |
-| `infra_apply_from_plan.yml` | Saved-plan apply workflow. Run manually from the Actions UI with `environment` and `plan_artifact_run_id` inputs. |
+| `infra_apply.yml` | Saved-plan apply workflow. Run manually from the Actions UI with `environment` and `plan_artifact_run_id` inputs. |
 
 ## Contract Checks
 
@@ -79,10 +79,10 @@ The shared infra plan/apply/destroy wrappers install Terraform and Terragrunt
 first, then execute Terragrunt across the whole environment.
 
 - They follow the same Terragrunt setup pattern as
-  `shared_bootstrap_infra.yml`.
+  `infra_bootstrap.yml`.
 - `infra_plan.yml` runs `terragrunt run-all plan`, then
   `terragrunt run-all show`.
-- `infra_apply_from_plan.yml` downloads the saved plan metadata, checks
+- `infra_apply.yml` downloads the saved plan metadata, checks
   out the planned infra ref, and then runs `terragrunt run-all apply`.
 - `destroy.yml` runs `terragrunt run-all destroy`.
 
@@ -114,7 +114,7 @@ call chain:
 - Adds a plan summary showing the modules whose saved `terragrunt.plan.json`
   reports `has_changes: true`.
 
-`infra_apply_from_plan.yml` is the apply-from-plan wrapper.
+`infra_apply.yml` is the apply-from-plan wrapper.
 
 - Takes `plan_artifact_run_id`.
 - Downloads `infra-plan-metadata` and `infra-plan-files` from the earlier
