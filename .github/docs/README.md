@@ -10,6 +10,7 @@ workflows, or workflow-owned `just` behavior.
 | `dev_code_deploy.yml` | Builds fresh dev artifacts and deploys code to dev. |
 | `prod_code_deploy.yml` | Resolves released artifacts from `ci` and deploys code to prod. |
 | `destroy.yml` | Tears down infrastructure by running `terragrunt run-all destroy`. |
+| `infra_bootstrap.yml` | Bootstrap workflow. Run manually from the Actions UI with `environment` and `infra_version` inputs. |
 | `infra_plan.yml` | Infra plan workflow. Run manually from the Actions UI with `environment` and `infra_version` inputs. |
 | `infra_apply.yml` | Saved-plan apply workflow. Run manually from the Actions UI with `environment` and `plan_artifact_run_id` inputs. |
 
