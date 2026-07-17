@@ -132,6 +132,14 @@ jobs:
           PLAN_ARTIFACT_RUN_ID: ${{ github.run_id }}
         shell: bash
         run: |
+          changed_modules_lines="$(jq -r '
+            if length == 0 then
+              "- none"
+            else
+              .[] | select(.has_changes == true) | "- `\(.module)`"
+            end
+          ' <<<"$CHANGED_MODULES_JSON")"
+
           {
             echo "## Infra Plan Summary"
             echo
@@ -140,7 +148,7 @@ jobs:
             echo "- \`plan_artifact_run_id\`: \`$PLAN_ARTIFACT_RUN_ID\`"
             echo "- \`modules_with_changes\`: \`$(jq -r 'length' <<<"$CHANGED_MODULES_JSON")\`"
             echo
-            echo '```json'
-            jq -c . <<<"$CHANGED_MODULES_JSON"
-            echo '```'
+            echo "Changed modules:"
+            echo
+            printf '%s\n' "$changed_modules_lines"
           } >> "$GITHUB_STEP_SUMMARY"

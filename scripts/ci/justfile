@@ -72,9 +72,7 @@ plan-json-files-to-change-summary environment provider='aws':
 
           jq -c --arg module_name "$module" '
             def is_change_action($action):
-              $action == "create"
-              or $action == "update"
-              or $action == "delete";
+              $action != "no-op";
 
             def has_resource_changes:
               any(
