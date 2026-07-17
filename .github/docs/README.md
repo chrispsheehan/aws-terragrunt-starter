@@ -82,7 +82,7 @@ first, then execute Terragrunt across the whole environment.
 - They follow the same Terragrunt setup pattern as
   `infra_bootstrap.yml`.
 - `infra_plan.yml` runs `terragrunt run-all plan`, then
-  `terragrunt run-all show`.
+  `terragrunt run-all show`, excluding `aws/task_worker`.
 - `infra_apply.yml` downloads the saved plan metadata, checks
   out the planned infra ref, and then runs `terragrunt run-all apply`.
 - `destroy.yml` runs `terragrunt run-all destroy`.
@@ -105,7 +105,8 @@ call chain:
 
 - Takes resolved workflow inputs directly.
 - Runs `terragrunt run-all plan`.
-- Runs `terragrunt run-all show` so each stack writes
+- Excludes `aws/task_worker`, because code deploy owns task-definition rollout and creates new ECS task-definition revisions during deploy.
+- Runs `terragrunt run-all show` so each planned stack writes
   `terragrunt.plan.json` beside `terragrunt.tfplan`.
 - Builds the per-module `has_changes` summary from those saved JSON files.
 - Writes direct workflow inputs plus that change summary into
@@ -173,6 +174,7 @@ That prevents partial real upstream state from suppressing missing mock keys.
 - Invokes the `migrations` Lambda after CodeDeploy completes.
 - Applies the `task_worker` stack with `worker` and `debug` image URIs.
 - Updates the `service_worker` ECS service.
+- That `task_worker` apply is the point where new ECS task-definition revisions are created for code rollout.
 
 Ownership boundary:
 

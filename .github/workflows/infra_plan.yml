@@ -59,12 +59,12 @@ jobs:
       - name: Plan all infra
         working-directory: infra/live/${{ inputs.environment }}
         shell: bash
-        run: terragrunt run-all plan --terragrunt-non-interactive
+        run: terragrunt run-all plan --terragrunt-non-interactive --terragrunt-exclude-dir aws/task_worker
 
       - name: Render saved plan JSON files
         working-directory: infra/live/${{ inputs.environment }}
         shell: bash
-        run: terragrunt run-all show --terragrunt-non-interactive
+        run: terragrunt run-all show --terragrunt-non-interactive --terragrunt-exclude-dir aws/task_worker
 
       - name: List changed-plan modules
         id: changed_module_paths
