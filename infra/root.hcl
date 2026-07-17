@@ -35,6 +35,13 @@ terraform {
       "bash", "-c", "echo STATE:${local.state_bucket}/${local.state_key} LOCKFILE:${local.state_key}.tflock"
     ]
   }
+
+  extra_arguments "saved_plan_output" {
+    commands = ["plan"]
+    arguments = [
+      "-out=${get_terragrunt_dir()}/terragrunt.tfplan"
+    ]
+  }
 }
 
 remote_state {

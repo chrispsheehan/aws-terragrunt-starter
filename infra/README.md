@@ -118,16 +118,27 @@ TG_GRAPH_METADATA_PLAN_RUN_ID=<plan-run-id> \
 just tg-graph-process graph.json dev
 ```
 
-For a local saved-plan run, pass the Terragrunt operation as one quoted
-argument:
+For a saved-plan run, pass the Terragrunt operation as one quoted argument:
 
 ```sh
-just tg dev aws/oidc 'plan -out=terragrunt.tfplan'
+just tg dev aws/oidc plan
 ```
 
 The `tg` recipe treats the final argument as the Terragrunt operation string, so
-quoting lets you pass flags such as `-out=...` through the wrapper. The workflow
-saved-plan path expects the binary plan filename to be `terragrunt.tfplan`.
+quoting lets you pass additional flags through the wrapper when needed. The
+shared Terragrunt root always writes `terragrunt.tfplan` into the live stack
+directory, so it lands beside that stack's `terragrunt.hcl` instead of inside
+`.terragrunt-cache`. The workflow saved-plan path expects the binary plan
+filename to be `terragrunt.tfplan`.
+
+For multi-stack saved-plan runs:
+
+```sh
+just tg-all dev plan
+```
+
+That writes one `terragrunt.tfplan` file per live stack directory under
+`infra/live/<env>/**`.
 
 To apply that same saved plan later, reuse the same run id:
 
