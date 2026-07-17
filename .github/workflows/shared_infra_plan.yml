@@ -11,10 +11,9 @@ on:
           - dev
           - prod
       infra_version:
-        description: "Version of infrastructure (terraform) to be planned. Defaults to the selected ref when blank."
-        required: false
+        description: "Version of infrastructure (terraform) to be planned"
+        required: true
         type: string
-        default: ""
   workflow_call:
     inputs:
       environment:
@@ -76,17 +75,21 @@ jobs:
         shell: bash
         run: terragrunt run-all show --terragrunt-non-interactive
 
+      - name: List changed-plan modules
+        id: changed_module_paths
+        uses: ./.github/actions/just
+        with:
+          justfile_path: scripts/ci/justfile
+          just_action: plan-json-files-list-modules ${{ inputs.environment }}
+
       - name: Summarize changed modules
         id: changed_modules
-        shell: bash
-        run: |
-          summary="$(
-            MODULE_PATHS_JSON="$(
-              just --justfile scripts/ci/justfile plan-json-files-list-modules ${{ inputs.environment }}
-            )" \
-            just --justfile scripts/ci/justfile plan-json-files-to-change-summary ${{ inputs.environment }}
-          )"
-          echo "just_outputs=$summary" >> "$GITHUB_OUTPUT"
+        uses: ./.github/actions/just
+        env:
+          MODULE_PATHS_JSON: ${{ steps.changed_module_paths.outputs.just_outputs }}
+        with:
+          justfile_path: scripts/ci/justfile
+          just_action: plan-json-files-to-change-summary ${{ inputs.environment }}
 
       - name: Write plan metadata from workflow inputs
         env:

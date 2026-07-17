@@ -7,14 +7,11 @@ workflows, or workflow-owned `just` behavior.
 
 | Workflow | Purpose |
 | --- | --- |
-| `dev_infra_apply_no_plan.yml` | Applies dev infrastructure using the current commit as the infra ref. |
-| `dev_infra_apply_from_plan.yml` | Applies dev infra from a prior saved-plan run using `plan_artifact_run_id`. |
 | `dev_code_deploy.yml` | Builds fresh dev artifacts and deploys code to dev. |
-| `prod_infra_apply_no_plan.yml` | Applies prod infrastructure using the pinned infra ref. |
-| `prod_infra_apply_from_plan.yml` | Applies prod infra from a prior saved-plan run. |
 | `prod_code_deploy.yml` | Resolves released artifacts from `ci` and deploys code to prod. |
 | `destroy.yml` | Tears down infrastructure by running `terragrunt run-all destroy`. |
-| `shared_infra_plan.yml` | Shared infra plan workflow. Can be called by other workflows or run manually from the Actions UI with `environment` input. |
+| `shared_infra_plan.yml` | Shared infra plan workflow. Can be called by other workflows or run manually from the Actions UI with `environment` and `infra_version` inputs. |
+| `shared_infra_apply_from_plan.yml` | Shared saved-plan apply workflow. Can be called by other workflows or run manually from the Actions UI with `environment` and `plan_artifact_run_id` inputs. |
 
 ## Contract Checks
 
@@ -133,8 +130,8 @@ call chain:
 - Checks out that planned `infra_version`.
 - Restores the saved `terragrunt.tfplan` and `terragrunt.plan.json` files into
   their original live stack paths.
-- Applies each changed module with
-  `terragrunt apply --terragrunt-non-interactive terragrunt.tfplan`.
+- Runs `TG_USE_SAVED_PLAN=true terragrunt run-all apply` and limits the run to
+  changed modules with repeated `--terragrunt-include-dir` flags.
 - Uses the saved `changed_modules` array as the apply selection and operator
   context.
 

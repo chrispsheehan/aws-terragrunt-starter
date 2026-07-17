@@ -52,7 +52,7 @@ These instructions apply to the entire repository.
 
 - verify the runtime/deploy shape and required backing resources before changing infra or workflow ordering
 - before adding environments or changing generated AWS names, verify the resulting AWS names because many names include account, region, environment, and repo name
-- before adding Terragrunt dependency edges, verify the target live stack exists in that environment and keep graph waves aligned with `just tg-graph-waves <env>`
+- before adding Terragrunt dependency edges, verify the target live stack exists in that environment and review the raw dependency graph with `just tg-graph <env>` when needed
 - when changing reusable workflows, compare caller `with:` blocks to `workflow_call.inputs`, remove dead contract fields, and keep job `name:` values human-readable
 - for shared infra plan/apply workflows, keep `task_*` stacks out of infra waves because code deploy owns task-definition rollout
 - for cross-stack output passthroughs, preserve consumer-facing output names and update the nearest module README
