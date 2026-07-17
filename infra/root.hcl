@@ -54,7 +54,7 @@ terraform {
   }
 
   extra_arguments "apply_saved_plan" {
-    commands = ["apply"]
+    commands  = ["apply"]
     arguments = local.use_saved_plan ? [local.saved_plan_path] : []
   }
 
