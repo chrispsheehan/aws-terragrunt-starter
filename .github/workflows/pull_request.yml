@@ -19,6 +19,9 @@ on:
         type: string
         default: "fix: manual workflow dispatch"
 
+env:
+  TG_VERSION: 0.72.6
+
 jobs:
   check-pr-title:
     name: PR Title
@@ -196,7 +199,7 @@ jobs:
       - uses: jdx/mise-action@v4
         with:
           tool_versions: |
-            terragrunt 0.45.10
+            terragrunt ${{ env.TG_VERSION }}
           github_token: ${{ github.token }}
 
       - name: Verify Terragrunt installation

@@ -28,6 +28,7 @@ env:
   AWS_OIDC_ROLE_ARN: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.PROJECT_NAME }}-${{ inputs.environment || github.event.inputs.environment }}-github-oidc-role
   AWS_REGION: ${{ vars.AWS_REGION }}
   TF_VAR_bootstrap: "true"
+  TG_VERSION: 0.72.6
 
 jobs:
   plan:
@@ -45,7 +46,7 @@ jobs:
 
       - uses: gruntwork-io/terragrunt-action@v3
         with:
-          tg_version: 0.72.6
+          tg_version: ${{ env.TG_VERSION }}
           tf_path: terraform
 
       - name: Plan all infra

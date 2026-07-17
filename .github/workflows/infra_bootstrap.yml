@@ -26,6 +26,7 @@ env:
   AWS_OIDC_ROLE_ARN: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.PROJECT_NAME }}-${{ inputs.environment }}-github-oidc-role
   AWS_REGION: ${{ vars.AWS_REGION }}
   TF_VAR_bootstrap: "true"
+  TG_VERSION: 0.72.6
 
 jobs:
   bootsrap_infra:
@@ -43,7 +44,7 @@ jobs:
     
       - uses: gruntwork-io/terragrunt-action@v3
         with:
-          tg_version: 0.72.6
+          tg_version: ${{ env.TG_VERSION }}
           tf_path: terraform
 
       - name: Apply ECR infra
@@ -53,16 +54,19 @@ jobs:
 
       - name: Get ECR infra outputs
         id: get-ecr
-        uses: ./.github/actions/terragrunt
-        with:
-          tg_directory: infra/live/${{ inputs.environment }}/aws/ecr
-          tg_action: init
+        working-directory: infra/live/${{ inputs.environment }}/aws/ecr
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "repository_url=$(terragrunt output -raw repository_url)" >> "$GITHUB_OUTPUT"
+          echo "repository_name=$(terragrunt output -raw repository_name)" >> "$GITHUB_OUTPUT"
 
       - name: Seed bootstrap image when missing
         uses: ./.github/actions/just
         env:
-          ECR_REPOSITORY_URL: ${{ fromJson(steps.get-ecr.outputs.tg_outputs).repository_url.value }}
-          ECR_REPOSITORY_NAME: ${{ fromJson(steps.get-ecr.outputs.tg_outputs).repository_name.value }}
+          ECR_REPOSITORY_URL: ${{ steps.get-ecr.outputs.repository_url }}
+          ECR_REPOSITORY_NAME: ${{ steps.get-ecr.outputs.repository_name }}
         with:
           justfile_path: scripts/ci/justfile
           just_action: ecr-seed-bootstrap-image
