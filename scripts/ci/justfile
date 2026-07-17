@@ -28,6 +28,23 @@ plan-json-files-list-modules environment provider='aws':
       | jq -Rsc 'split("\n") | map(select(length > 0))'
 
 
+# Remove stale saved-plan artifacts for one environment before generating fresh plan/show output.
+plan-json-files-clean environment provider='aws':
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "{{PROJECT_DIR}}"
+
+    env_dir="infra/live/{{environment}}/{{provider}}"
+
+    if [[ ! -d "$env_dir" ]]; then
+        echo "❌ Environment directory not found: $env_dir"
+        exit 1
+    fi
+
+    find "$env_dir" -type f \( -name terragrunt.tfplan -o -name terragrunt.plan.json \) -delete
+    echo "Cleaned saved plan artifacts under $env_dir"
+
+
 # Build a compact per-module change summary from terragrunt.plan.json files for one environment.
 plan-json-files-to-change-summary environment provider='aws':
     #!/usr/bin/env bash
@@ -45,7 +62,7 @@ plan-json-files-to-change-summary environment provider='aws':
         module_paths_json="$(jq -c . <<<"$MODULE_PATHS_JSON")"
     else
         module_paths_json="$(
-          just --justfile "{{justfile_directory()}}/scripts/ci/justfile" plan-json-files-list-modules "{{environment}}" "{{provider}}"
+          just --justfile "{{justfile_directory()}}/justfile" plan-json-files-list-modules "{{environment}}" "{{provider}}"
         )"
     fi
 
@@ -69,7 +86,13 @@ plan-json-files-to-change-summary environment provider='aws':
               );
 
             def has_output_changes:
-              ((.output_changes // {}) | to_entries | length) > 0;
+              any(
+                ((.output_changes // {}) | to_entries)[];
+                any(
+                  (.value.actions // [])[];
+                  is_change_action(.)
+                )
+              );
 
             {
               module: $module_name,

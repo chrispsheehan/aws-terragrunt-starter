@@ -56,6 +56,12 @@ jobs:
           tg_version: ${{ env.TG_VERSION }}
           tf_path: terraform
 
+      - name: Remove stale saved plan artifacts
+        uses: ./.github/actions/just
+        with:
+          justfile_path: scripts/ci/justfile
+          just_action: plan-json-files-clean ${{ inputs.environment }}
+
       - name: Plan all infra
         working-directory: infra/live/${{ inputs.environment }}
         shell: bash

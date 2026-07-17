@@ -104,6 +104,7 @@ call chain:
 `infra_plan.yml` is the saved-plan wrapper.
 
 - Takes resolved workflow inputs directly.
+- Removes existing `terragrunt.tfplan` and `terragrunt.plan.json` files under the target environment before planning so stale artifacts cannot survive from earlier runs.
 - Runs `terragrunt run-all plan`.
 - Excludes `aws/task_worker`, because code deploy owns task-definition rollout and creates new ECS task-definition revisions during deploy.
 - Runs `terragrunt run-all show` so each planned stack writes
