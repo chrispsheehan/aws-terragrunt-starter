@@ -44,6 +44,7 @@ env:
   AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
   AWS_OIDC_ROLE_ARN: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.PROJECT_NAME }}-${{ inputs.environment }}-github-oidc-role"
   AWS_REGION: ${{ vars.AWS_REGION }}
+  TF_VERSION: 1.12.2
   TG_VERSION: 0.72.6
 
 jobs:
@@ -61,6 +62,10 @@ jobs:
         with:
           role-to-assume: ${{ env.AWS_OIDC_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
 
       - uses: gruntwork-io/terragrunt-action@v3
         with:
@@ -95,6 +100,10 @@ jobs:
         with:
           role-to-assume: ${{ env.AWS_OIDC_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
 
       - uses: gruntwork-io/terragrunt-action@v3
         with:

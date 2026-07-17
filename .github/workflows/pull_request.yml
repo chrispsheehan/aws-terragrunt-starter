@@ -20,6 +20,7 @@ on:
         default: "fix: manual workflow dispatch"
 
 env:
+  TF_VERSION: 1.12.2
   TG_VERSION: 0.72.6
 
 jobs:
@@ -196,6 +197,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
       - uses: jdx/mise-action@v4
         with:
           tool_versions: |
