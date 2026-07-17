@@ -1,4 +1,4 @@
-name: Shared Infra Bootstrap Workflow
+name: Infra Bootstrap Workflow
 
 on:
   workflow_call:
