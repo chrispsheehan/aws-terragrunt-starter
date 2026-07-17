@@ -147,6 +147,13 @@ The summary recipe reads each `infra/live/<env>/<module>/terragrunt.plan.json`,
 matches Terraform resource actions `create`, `update`, and `delete`, and also
 treats non-empty `output_changes` as a change.
 
+For apply-from-plan selection, the workflow derives a changed-only module-path
+array from that summary and excludes `aws/task_worker`. For example:
+
+```json
+["aws/oidc"]
+```
+
 To apply that same saved plan later, reuse the same run id:
 
 ```sh

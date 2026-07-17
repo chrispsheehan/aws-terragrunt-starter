@@ -110,7 +110,8 @@ call chain:
 - Runs `terragrunt run-all show` so each planned stack writes
   `terragrunt.plan.json` beside `terragrunt.tfplan`.
 - Builds the per-module `has_changes` summary from those saved JSON files.
-- Writes direct workflow inputs plus that change summary into
+- Derives a changed-only module-path array from that summary, excluding `aws/task_worker`.
+- Writes direct workflow inputs plus both the full summary and changed-only path list into
   `plan-metadata.json`.
 - Uploads that file as the GitHub Actions artifact named `infra-plan-metadata`.
 - Uploads all saved `terragrunt.tfplan` and `terragrunt.plan.json` files as
@@ -123,7 +124,7 @@ call chain:
 - Takes `plan_artifact_run_id`.
 - Downloads `infra-plan-metadata` and `infra-plan-files` from the earlier
   workflow run.
-- Reads the planned `infra_version` and the saved `changed_modules` summary.
+- Reads the planned `infra_version`, the saved `changed_modules` summary, and the saved changed-only module-path list.
 - Exits early with a workflow warning when the saved metadata reports no
   changed modules overall after excluding `aws/task_worker`.
 - Checks out that planned `infra_version`.
@@ -132,8 +133,7 @@ call chain:
 - Runs `TG_USE_SAVED_PLAN=true terragrunt run-all apply` and limits the run to
   changed modules with repeated `--terragrunt-include-dir` flags, excluding
   `aws/task_worker`.
-- Uses the saved `changed_modules` array as the apply selection and operator
-  context.
+- Uses the saved changed-only module-path list as the apply selection and the full `changed_modules` summary as operator context.
 
 Saved infra-plan storage is split into:
 

@@ -61,16 +61,17 @@ jobs:
         run: |
           echo "infra_version=$(jq -r '.infra_version' plan-metadata.json)" >> "$GITHUB_OUTPUT"
           echo "changed_modules=$(jq -c '.changed_modules // []' plan-metadata.json)" >> "$GITHUB_OUTPUT"
+          echo "changed_module_paths=$(jq -c '.changed_module_paths // []' plan-metadata.json)" >> "$GITHUB_OUTPUT"
 
       - name: Exit early when no saved changes were recorded
         id: change_check
         shell: bash
         env:
-          CHANGED_MODULES_JSON: ${{ steps.metadata.outputs.changed_modules }}
+          CHANGED_MODULE_PATHS_JSON: ${{ steps.metadata.outputs.changed_module_paths }}
         run: |
           set -euo pipefail
 
-          changed_count="$(jq '[.[] | select(.has_changes == true and .module != "aws/task_worker")] | length' <<<"$CHANGED_MODULES_JSON")"
+          changed_count="$(jq 'length' <<<"$CHANGED_MODULE_PATHS_JSON")"
 
           if [[ "$changed_count" == "0" ]]; then
             echo "::warning title=No applicable saved plan changes::The saved plan metadata contains no changed modules after excluding aws/task_worker. Skipping apply."
@@ -137,14 +138,14 @@ jobs:
         if: steps.change_check.outputs.should_apply == 'true'
         shell: bash
         env:
-          CHANGED_MODULES_JSON: ${{ steps.metadata.outputs.changed_modules }}
+          CHANGED_MODULE_PATHS_JSON: ${{ steps.metadata.outputs.changed_module_paths }}
         run: |
           set -euo pipefail
 
           include_dir_args="$(jq -r '
-            [.[] | select(.has_changes == true and .module != "aws/task_worker") | "--terragrunt-include-dir", .module]
+            [.[] | "--terragrunt-include-dir", .]
             | @sh
-          ' <<<"$CHANGED_MODULES_JSON")"
+          ' <<<"$CHANGED_MODULE_PATHS_JSON")"
 
           echo "include_dir_args=$include_dir_args" >> "$GITHUB_OUTPUT"
 
@@ -163,6 +164,7 @@ jobs:
         if: steps.change_check.outputs.should_apply == 'true'
         env:
           CHANGED_MODULES_JSON: ${{ steps.metadata.outputs.changed_modules }}
+          CHANGED_MODULE_PATHS_JSON: ${{ steps.metadata.outputs.changed_module_paths }}
         shell: bash
         run: |
           {
@@ -173,7 +175,13 @@ jobs:
             echo "- \`plan_artifact_run_id\`: \`${{ env.TARGET_PLAN_ARTIFACT_RUN_ID }}\`"
             echo "- command: \`TG_USE_SAVED_PLAN=true terragrunt run-all apply --terragrunt-non-interactive --terragrunt-include-dir ...\`"
             echo
-            echo 'Changed modules recorded by the plan run:'
+            echo 'Changed module paths used for include-dir selection:'
+            echo
+            echo '```json'
+            jq -c . <<<"$CHANGED_MODULE_PATHS_JSON"
+            echo '```'
+            echo
+            echo 'Full saved plan summary:'
             echo
             echo '```json'
             jq -c . <<<"$CHANGED_MODULES_JSON"
