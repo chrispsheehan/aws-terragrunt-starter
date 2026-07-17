@@ -13,7 +13,9 @@ on:
       infra_version:
         description: "Version of infrastructure (terraform) to be planned"
         required: true
+        default: main
         type: string
+        
 concurrency:
   group: infra-plan-${{ inputs.environment }}
   cancel-in-progress: false

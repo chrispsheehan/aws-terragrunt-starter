@@ -112,7 +112,6 @@ call chain:
 - Uploads that file as the GitHub Actions artifact named `infra-plan-metadata`.
 - Uploads all saved `terragrunt.tfplan` and `terragrunt.plan.json` files as
   the GitHub Actions artifact named `infra-plan-files`.
-- Exposes `plan_artifact_run_id` as a reusable-workflow output.
 - Adds a plan summary showing the modules whose saved `terragrunt.plan.json`
   reports `has_changes: true`.
 
@@ -207,7 +206,6 @@ references point at local paths instead of external action tags.
 - [get-changes](../actions/get-changes/README.md)
 - [get-release-version](../actions/get-release-version/README.md)
 - [just](../actions/just/README.md)
-- [terragrunt](../actions/terragrunt/README.md)
 
 When a repo-local action needs AWS, configure credentials in the workflow job
 before calling the action. The local action should reuse that ambient AWS
