@@ -100,7 +100,7 @@ jobs:
           name: infra-plan-files
           github-token: ${{ github.token }}
           run-id: ${{ env.TARGET_PLAN_ARTIFACT_RUN_ID }}
-          path: .
+          path: infra/live/${{ inputs.environment }}
 
       - name: Check restored plan files
         if: steps.change_check.outputs.should_apply == 'true'
