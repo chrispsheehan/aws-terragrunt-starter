@@ -140,6 +140,16 @@ just tg-all dev plan
 That writes one `terragrunt.tfplan` file per live stack directory under
 `infra/live/<env>/**`.
 
+To inspect that saved plan as JSON, use `show` without repeating the filename:
+
+```sh
+just tg dev aws/oidc show
+just tg-all dev show
+```
+
+The shared Terragrunt root adds `-json terragrunt.tfplan` for `show`, so each
+module reads its saved plan file from the live stack directory.
+
 To apply that same saved plan later, reuse the same run id:
 
 ```sh

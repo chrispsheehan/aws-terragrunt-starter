@@ -42,6 +42,14 @@ terraform {
       "-out=${get_terragrunt_dir()}/terragrunt.tfplan"
     ]
   }
+
+  extra_arguments "saved_plan_show_json" {
+    commands = ["show"]
+    arguments = [
+      "-json",
+      "${get_terragrunt_dir()}/terragrunt.tfplan"
+    ]
+  }
 }
 
 remote_state {
