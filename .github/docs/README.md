@@ -111,6 +111,8 @@ call chain:
 - Writes direct workflow inputs plus that change summary into
   `plan-metadata.json`.
 - Uploads that file as the GitHub Actions artifact named `infra-plan-metadata`.
+- Uploads all saved `terragrunt.tfplan` and `terragrunt.plan.json` files as
+  the GitHub Actions artifact named `infra-plan-files`.
 - Exposes `plan_artifact_run_id` as a reusable-workflow output.
 - Adds a plan summary showing the modules whose saved `terragrunt.plan.json`
   reports `has_changes: true`.
@@ -132,15 +134,17 @@ call chain:
 Saved infra-plan storage is split into:
 
 - run-level artifact: `infra-plan-metadata`, containing `plan-metadata.json`
-- per-stack local files in the checked-out repo: `terragrunt.tfplan` and
-  `terragrunt.plan.json`
+- run-level artifact: `infra-plan-files`, containing all saved
+  `terragrunt.tfplan` and `terragrunt.plan.json` files under the selected
+  environment
 
 The shared Terragrunt root owns the saved plan paths.
 
 - `plan` writes `terragrunt.tfplan` into each live stack directory.
 - `show` reads that file with `terraform show -json` and writes
   `terragrunt.plan.json` beside it.
-- `infra-plan-metadata` is uploaded with `retention-days: 14`.
+- `infra-plan-metadata` and `infra-plan-files` are uploaded with
+  `retention-days: 14`.
 
 If apply is deferred to a later workflow run, pass the earlier `run_id` through
 `plan_artifact_run_id`. Recovery only works while the metadata artifact is

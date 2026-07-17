@@ -31,7 +31,7 @@ on:
         value: ${{ jobs.plan.outputs.plan_artifact_run_id }}
 
 concurrency:
-  group: infra-plan-${{ inputs.environment || github.event.inputs.environment }}
+  group: infra-plan-${{ inputs.environment }}
   cancel-in-progress: false
 
 permissions:
@@ -41,8 +41,6 @@ permissions:
 
 env:
   AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
-  TARGET_ENVIRONMENT: ${{ inputs.environment || github.event.inputs.environment }}
-  TARGET_INFRA_VERSION: ${{ inputs.infra_version || github.event.inputs.infra_version || github.sha }}
   AWS_OIDC_ROLE_ARN: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.PROJECT_NAME }}-${{ inputs.environment || github.event.inputs.environment }}-github-oidc-role
   AWS_REGION: ${{ vars.AWS_REGION }}
   TF_VAR_bootstrap: "true"
@@ -56,7 +54,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ env.TARGET_INFRA_VERSION }}
+          ref: ${{ inputs.infra_version }}
 
       - uses: aws-actions/configure-aws-credentials@v6
         with:
@@ -69,12 +67,12 @@ jobs:
           tf_path: terraform
 
       - name: Plan all infra
-        working-directory: infra/live/${{ env.TARGET_ENVIRONMENT }}
+        working-directory: infra/live/${{ inputs.environment }}
         shell: bash
         run: terragrunt run-all plan --terragrunt-non-interactive
 
       - name: Render saved plan JSON files
-        working-directory: infra/live/${{ env.TARGET_ENVIRONMENT }}
+        working-directory: infra/live/${{ inputs.environment }}
         shell: bash
         run: terragrunt run-all show --terragrunt-non-interactive
 
@@ -84,9 +82,9 @@ jobs:
         run: |
           summary="$(
             MODULE_PATHS_JSON="$(
-              just --justfile scripts/ci/justfile plan-json-files-list-modules ${{ env.TARGET_ENVIRONMENT }}
+              just --justfile scripts/ci/justfile plan-json-files-list-modules ${{ inputs.environment }}
             )" \
-            just --justfile scripts/ci/justfile plan-json-files-to-change-summary ${{ env.TARGET_ENVIRONMENT }}
+            just --justfile scripts/ci/justfile plan-json-files-to-change-summary ${{ inputs.environment }}
           )"
           echo "just_outputs=$summary" >> "$GITHUB_OUTPUT"
 
@@ -97,8 +95,8 @@ jobs:
         run: |
           cat > plan-metadata.json <<EOF
           {
-            "infra_version": "${{ env.TARGET_INFRA_VERSION }}",
-            "environment": "${{ env.TARGET_ENVIRONMENT }}",
+            "infra_version": "${{ inputs.infra_version }}",
+            "environment": "${{ inputs.environment }}",
             "changed_modules": ${CHANGED_MODULES_JSON}
           }
           EOF
@@ -108,6 +106,16 @@ jobs:
         with:
           name: infra-plan-metadata
           path: plan-metadata.json
+          retention-days: 14
+
+      - name: Upload plan files artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: infra-plan-files
+          path: |
+            infra/live/${{ inputs.environment }}/**/terragrunt.tfplan
+            infra/live/${{ inputs.environment }}/**/terragrunt.plan.json
+          if-no-files-found: error
           retention-days: 14
 
       - name: Emit plan artifact run id
@@ -127,8 +135,8 @@ jobs:
           {
             echo "## Infra Plan Summary"
             echo
-            echo "- \`environment\`: \`${{ env.TARGET_ENVIRONMENT }}\`"
-            echo "- \`infra_version\`: \`${{ env.TARGET_INFRA_VERSION }}\`"
+            echo "- \`environment\`: \`${{ inputs.environment }}\`"
+            echo "- \`infra_version\`: \`${{ inputs.infra_version }}\`"
             echo "- \`plan_artifact_run_id\`: \`$PLAN_ARTIFACT_RUN_ID\`"
             echo "- \`modules_with_changes\`: \`$(jq -r 'length' <<<"$CHANGED_MODULES_JSON")\`"
             echo
