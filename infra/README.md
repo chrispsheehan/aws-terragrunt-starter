@@ -152,10 +152,22 @@ module reads its saved plan file from the live stack directory. An `after_hook`
 also writes that JSON to `terragrunt.plan.json` beside the stack's
 `terragrunt.tfplan`.
 
-To build a per-module `has_changes` summary from the generated
-`terragrunt.plan.json` files for one environment:
+To list the modules that produced `terragrunt.plan.json` for one environment:
 
 ```sh
+just --justfile scripts/ci/justfile plan-json-files-list-modules dev
+```
+
+That returns an array like:
+
+```json
+["aws/oidc","aws/task_worker"]
+```
+
+To build the per-module `has_changes` summary from that list:
+
+```sh
+MODULE_PATHS_JSON="$(just --justfile scripts/ci/justfile plan-json-files-list-modules dev)" \
 just --justfile scripts/ci/justfile plan-json-files-to-change-summary dev
 ```
 
@@ -165,7 +177,7 @@ That returns an array like:
 [{"module":"aws/oidc","has_changes":false},{"module":"aws/task_worker","has_changes":true}]
 ```
 
-The recipe reads each `infra/live/<env>/aws/*/terragrunt.plan.json` file,
+The summary recipe reads each `infra/live/<env>/<module>/terragrunt.plan.json`,
 matches Terraform resource actions `create`, `update`, and `delete`, and also
 treats non-empty `output_changes` as a change.
 

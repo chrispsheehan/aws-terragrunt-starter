@@ -229,6 +229,26 @@ plan-jsons-normalize:
 
 
 # Build a compact per-module change summary from terragrunt.plan.json files for one environment.
+plan-json-files-list-modules environment provider='aws':
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "{{PROJECT_DIR}}"
+
+    env_dir="infra/live/{{environment}}/{{provider}}"
+
+    if [[ ! -d "$env_dir" ]]; then
+        echo "❌ Environment directory not found: $env_dir"
+        exit 1
+    fi
+
+    find "$env_dir" -mindepth 1 -maxdepth 1 -type d \
+      -exec test -f '{}/terragrunt.plan.json' ';' -print \
+      | sed "s#^infra/live/{{environment}}/##" \
+      | sort \
+      | jq -Rsc 'split("\n") | map(select(length > 0))'
+
+
+# Build a compact per-module change summary from terragrunt.plan.json files for one environment.
 plan-json-files-to-change-summary environment provider='aws':
     #!/usr/bin/env bash
     set -euo pipefail
@@ -241,11 +261,17 @@ plan-json-files-to-change-summary environment provider='aws':
         exit 1
     fi
 
-    find "$env_dir" -mindepth 2 -maxdepth 2 -name 'terragrunt.plan.json' -print \
-      | sort \
-      | while IFS= read -r plan_file; do
-          module="${plan_file#infra/live/{{environment}}/}"
-          module="${module%/terragrunt.plan.json}"
+    if [[ -n "${MODULE_PATHS_JSON:-}" ]]; then
+        module_paths_json="$(jq -c . <<<"$MODULE_PATHS_JSON")"
+    else
+        module_paths_json="$(
+          just --justfile "{{justfile_directory()}}/scripts/ci/justfile" plan-json-files-list-modules "{{environment}}" "{{provider}}"
+        )"
+    fi
+
+    jq -r '.[]' <<<"$module_paths_json" \
+      | while IFS= read -r module; do
+          plan_file="infra/live/{{environment}}/${module}/terragrunt.plan.json"
 
           jq -c --arg module_name "$module" '
             def is_change_action($action):
