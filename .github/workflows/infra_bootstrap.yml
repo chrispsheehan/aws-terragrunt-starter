@@ -46,7 +46,28 @@ jobs:
           tg_version: 0.72.6
           tf_path: terraform
 
+      - name: Apply ECR infra
+        working-directory: infra/live/${{ inputs.environment }}
+        shell: bash
+        run: terragrunt run-all apply --terragrunt-non-interactive --terragrunt-include-dir aws/ecr
+
+      - name: Get ECR infra outputs
+        id: get-ecr
+        uses: ./.github/actions/terragrunt
+        with:
+          tg_directory: infra/live/${{ inputs.environment }}/aws/ecr
+          tg_action: init
+
+      - name: Seed bootstrap image when missing
+        uses: ./.github/actions/just
+        env:
+          ECR_REPOSITORY_URL: ${{ fromJson(steps.get-ecr.outputs.tg_outputs).repository_url.value }}
+          ECR_REPOSITORY_NAME: ${{ fromJson(steps.get-ecr.outputs.tg_outputs).repository_name.value }}
+        with:
+          justfile_path: scripts/ci/justfile
+          just_action: ecr-seed-bootstrap-image
+
       - name: Terragrunt Apply All
         working-directory: infra/live/${{ inputs.environment }}
         shell: bash
-        run: terragrunt run-all apply --terragrunt-non-interactive
+        run: terragrunt run-all apply --terragrunt-non-interactive --terragrunt-exclude-dir aws/task_worker

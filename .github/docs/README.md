@@ -85,6 +85,8 @@ first, then execute Terragrunt across the whole environment.
 - `infra_apply.yml` downloads the saved plan metadata, checks
   out the planned infra ref, and then runs `terragrunt run-all apply`.
 - `destroy.yml` runs `terragrunt run-all destroy`.
+- `infra_bootstrap.yml` first applies `aws/ecr`, seeds the stable bootstrap
+  image when missing, and then runs the full bootstrap apply.
 
 Shared infra wrappers must forward permissions required by the nested reusable
 call chain:
@@ -121,12 +123,13 @@ call chain:
   workflow run.
 - Reads the planned `infra_version` and the saved `changed_modules` summary.
 - Exits early with a workflow warning when the saved metadata reports no
-  changed modules overall.
+  changed modules overall after excluding `aws/task_worker`.
 - Checks out that planned `infra_version`.
 - Restores the saved `terragrunt.tfplan` and `terragrunt.plan.json` files into
   their original live stack paths.
 - Runs `TG_USE_SAVED_PLAN=true terragrunt run-all apply` and limits the run to
-  changed modules with repeated `--terragrunt-include-dir` flags.
+  changed modules with repeated `--terragrunt-include-dir` flags, excluding
+  `aws/task_worker`.
 - Uses the saved `changed_modules` array as the apply selection and operator
   context.
 
