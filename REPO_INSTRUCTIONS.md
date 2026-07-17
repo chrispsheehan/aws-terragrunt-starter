@@ -54,6 +54,7 @@ These instructions apply to the entire repository.
 - before adding environments or changing generated AWS names, verify the resulting AWS names because many names include account, region, environment, and repo name
 - before adding Terragrunt dependency edges, verify the target live stack exists in that environment and review the raw dependency graph with `just tg-graph <env>` when needed
 - when changing reusable workflows, compare caller `with:` blocks to `workflow_call.inputs`, remove dead contract fields, and keep job `name:` values human-readable
+- for `workflow_dispatch` workflows, prefer `inputs.<name>` directly; do not add `github.event.inputs` fallbacks when the workflow already defines typed inputs
 - for shared infra plan/apply workflows, keep `task_*` stacks out of infra waves because code deploy owns task-definition rollout
 - for cross-stack output passthroughs, preserve consumer-facing output names and update the nearest module README
 - prefer Terragrunt `dependency` inputs plus `mock_outputs` over `terraform_remote_state`; if remote state is intentional, add a `# remote_state_reason: ...` comment

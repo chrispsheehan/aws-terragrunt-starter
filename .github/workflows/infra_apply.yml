@@ -15,7 +15,7 @@ on:
         required: true
         type: string
 concurrency:
-  group: infra-mutate-${{ inputs.environment || github.event.inputs.environment }}
+  group: infra-mutate-${{ inputs.environment }}
   cancel-in-progress: false
 
 permissions:
@@ -25,9 +25,8 @@ permissions:
 
 env:
   AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
-  TARGET_ENVIRONMENT: ${{ inputs.environment || github.event.inputs.environment }}
-  TARGET_PLAN_ARTIFACT_RUN_ID: ${{ inputs.plan_artifact_run_id || github.event.inputs.plan_artifact_run_id }}
-  AWS_OIDC_ROLE_ARN: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.PROJECT_NAME }}-${{ inputs.environment || github.event.inputs.environment }}-github-oidc-role
+  TARGET_PLAN_ARTIFACT_RUN_ID: ${{ inputs.plan_artifact_run_id }}
+  AWS_OIDC_ROLE_ARN: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.PROJECT_NAME }}-${{ inputs.environment }}-github-oidc-role
   AWS_REGION: ${{ vars.AWS_REGION }}
   TF_VAR_bootstrap: "true"
   TF_VERSION: 1.12.2
@@ -79,7 +78,7 @@ jobs:
             {
               echo "## Apply From Plan Summary"
               echo
-              echo "- \`environment\`: \`${{ env.TARGET_ENVIRONMENT }}\`"
+              echo "- \`environment\`: \`${{ inputs.environment }}\`"
               echo "- \`infra_version\`: \`${{ steps.metadata.outputs.infra_version }}\`"
               echo "- \`plan_artifact_run_id\`: \`${{ env.TARGET_PLAN_ARTIFACT_RUN_ID }}\`"
               echo "- result: no saved changes detected; apply skipped"
@@ -107,7 +106,7 @@ jobs:
         if: steps.change_check.outputs.should_apply == 'true'
         shell: bash
         run: |
-          plan_files="$(find "infra/live/${{ env.TARGET_ENVIRONMENT }}" -name terragrunt.tfplan -print | sort)"
+          plan_files="$(find "infra/live/${{ inputs.environment }}" -name terragrunt.tfplan -print | sort)"
 
           if [[ -z "$plan_files" ]]; then
             echo "::error title=Missing saved plan files::Expected artifact 'infra-plan-files' containing terragrunt.tfplan files from workflow run '${{ env.TARGET_PLAN_ARTIFACT_RUN_ID }}', but none were restored."
@@ -151,7 +150,7 @@ jobs:
 
       - name: Apply changed saved plans
         if: steps.change_check.outputs.should_apply == 'true'
-        working-directory: infra/live/${{ env.TARGET_ENVIRONMENT }}
+        working-directory: infra/live/${{ inputs.environment }}
         shell: bash
         env:
           INCLUDE_DIR_ARGS: ${{ steps.include_dirs.outputs.include_dir_args }}
@@ -169,7 +168,7 @@ jobs:
           {
             echo "## Apply From Plan Summary"
             echo
-            echo "- \`environment\`: \`${{ env.TARGET_ENVIRONMENT }}\`"
+            echo "- \`environment\`: \`${{ inputs.environment }}\`"
             echo "- \`infra_version\`: \`${{ steps.metadata.outputs.infra_version }}\`"
             echo "- \`plan_artifact_run_id\`: \`${{ env.TARGET_PLAN_ARTIFACT_RUN_ID }}\`"
             echo "- command: \`TG_USE_SAVED_PLAN=true terragrunt run-all apply --terragrunt-non-interactive --terragrunt-include-dir ...\`"
