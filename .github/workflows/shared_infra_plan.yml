@@ -1,6 +1,20 @@
 name: Shared Infra Plan
 
 on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: environment reference i.e. 'prod' or 'dev'
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+      infra_version:
+        description: "Version of infrastructure (terraform) to be planned. Defaults to the selected ref when blank."
+        required: false
+        type: string
+        default: ""
   workflow_call:
     inputs:
       environment:
@@ -17,7 +31,7 @@ on:
         value: ${{ jobs.plan.outputs.plan_artifact_run_id }}
 
 concurrency:
-  group: infra-plan-${{ inputs.environment }}
+  group: infra-plan-${{ inputs.environment || github.event.inputs.environment }}
   cancel-in-progress: false
 
 permissions:
@@ -27,7 +41,9 @@ permissions:
 
 env:
   AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
-  AWS_OIDC_ROLE_ARN: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.PROJECT_NAME }}-${{ inputs.environment }}-github-oidc-role
+  TARGET_ENVIRONMENT: ${{ inputs.environment || github.event.inputs.environment }}
+  TARGET_INFRA_VERSION: ${{ inputs.infra_version || github.event.inputs.infra_version || github.sha }}
+  AWS_OIDC_ROLE_ARN: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.PROJECT_NAME }}-${{ inputs.environment || github.event.inputs.environment }}-github-oidc-role
   AWS_REGION: ${{ vars.AWS_REGION }}
   TF_VAR_bootstrap: "true"
 
@@ -40,7 +56,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.infra_version }}
+          ref: ${{ env.TARGET_INFRA_VERSION }}
 
       - uses: aws-actions/configure-aws-credentials@v6
         with:
@@ -53,12 +69,12 @@ jobs:
           tf_path: terraform
 
       - name: Plan all infra
-        working-directory: infra/live/${{ inputs.environment }}
+        working-directory: infra/live/${{ env.TARGET_ENVIRONMENT }}
         shell: bash
         run: terragrunt run-all plan --terragrunt-non-interactive
 
       - name: Render saved plan JSON files
-        working-directory: infra/live/${{ inputs.environment }}
+        working-directory: infra/live/${{ env.TARGET_ENVIRONMENT }}
         shell: bash
         run: terragrunt run-all show --terragrunt-non-interactive
 
@@ -68,9 +84,9 @@ jobs:
         run: |
           summary="$(
             MODULE_PATHS_JSON="$(
-              just --justfile scripts/ci/justfile plan-json-files-list-modules ${{ inputs.environment }}
+              just --justfile scripts/ci/justfile plan-json-files-list-modules ${{ env.TARGET_ENVIRONMENT }}
             )" \
-            just --justfile scripts/ci/justfile plan-json-files-to-change-summary ${{ inputs.environment }}
+            just --justfile scripts/ci/justfile plan-json-files-to-change-summary ${{ env.TARGET_ENVIRONMENT }}
           )"
           echo "just_outputs=$summary" >> "$GITHUB_OUTPUT"
 
@@ -81,8 +97,8 @@ jobs:
         run: |
           cat > plan-metadata.json <<EOF
           {
-            "infra_version": "${{ inputs.infra_version }}",
-            "environment": "${{ inputs.environment }}",
+            "infra_version": "${{ env.TARGET_INFRA_VERSION }}",
+            "environment": "${{ env.TARGET_ENVIRONMENT }}",
             "changed_modules": ${CHANGED_MODULES_JSON}
           }
           EOF
@@ -111,8 +127,8 @@ jobs:
           {
             echo "## Infra Plan Summary"
             echo
-            echo "- \`environment\`: \`${{ inputs.environment }}\`"
-            echo "- \`infra_version\`: \`${{ inputs.infra_version }}\`"
+            echo "- \`environment\`: \`${{ env.TARGET_ENVIRONMENT }}\`"
+            echo "- \`infra_version\`: \`${{ env.TARGET_INFRA_VERSION }}\`"
             echo "- \`plan_artifact_run_id\`: \`$PLAN_ARTIFACT_RUN_ID\`"
             echo "- \`modules_with_changes\`: \`$(jq -r 'length' <<<"$CHANGED_MODULES_JSON")\`"
             echo

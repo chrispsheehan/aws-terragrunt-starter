@@ -8,14 +8,13 @@ workflows, or workflow-owned `just` behavior.
 | Workflow | Purpose |
 | --- | --- |
 | `dev_infra_apply_no_plan.yml` | Applies dev infrastructure using the current commit as the infra ref. |
-| `dev_infra_plan.yml` | Plans all dev infrastructure through Terragrunt `run-all`. |
 | `dev_infra_apply_from_plan.yml` | Applies dev infra from a prior saved-plan run using `plan_artifact_run_id`. |
 | `dev_code_deploy.yml` | Builds fresh dev artifacts and deploys code to dev. |
-| `prod_infra_plan.yml` | Plans all prod infrastructure for the requested infra ref through Terragrunt `run-all`. |
 | `prod_infra_apply_no_plan.yml` | Applies prod infrastructure using the pinned infra ref. |
 | `prod_infra_apply_from_plan.yml` | Applies prod infra from a prior saved-plan run. |
 | `prod_code_deploy.yml` | Resolves released artifacts from `ci` and deploys code to prod. |
 | `destroy.yml` | Tears down infrastructure by running `terragrunt run-all destroy`. |
+| `shared_infra_plan.yml` | Shared infra plan workflow. Can be called by other workflows or run manually from the Actions UI with `environment` input. |
 
 ## Contract Checks
 
