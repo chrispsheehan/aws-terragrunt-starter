@@ -7,6 +7,9 @@
 
 AWS Terragrunt starter for multi-environment infrastructure and code deployment, with generated GitHub Actions workflows, OIDC-based AWS access, bootstrap-safe applies, and saved-plan promotion flows.
 
+If you want an even simpler starting point, see the
+[`mvp-skeleton` branch](https://github.com/chrispsheehan/aws-terragrunt-starter/tree/mvp-skeleton).
+
 GitHub workflow jobs are generated from the infrastructure configuration. See
 [workflow docs](.github/docs/README.md) for workflow detail and
 [infra/README.md](infra/README.md) for state and Terragrunt graph notes.
