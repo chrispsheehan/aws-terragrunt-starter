@@ -3,32 +3,9 @@ _default:
     @just --list
     @printf '\nCI recipes (`just --justfile scripts/ci/justfile --list`):\n'
     @just --justfile scripts/ci/justfile --list
-    @printf '\nDeploy recipes (`just --justfile scripts/deploy/justfile --list`):\n'
-    @just --justfile scripts/deploy/justfile --list
-    @printf '\nDestroy recipes (`just --justfile scripts/destroy/justfile --list`):\n'
-    @just --justfile scripts/destroy/justfile --list
 
 
 PROJECT_DIR := justfile_directory()
-LAMBDA_DIR := "lambdas"
-FRONTEND_DIR := "frontend"
-CONTAINERS_DIR := "containers"
-APPSPEC_DIR := "appspec"
-
-
-# Return the Lambda artifact directory name.
-code-bucket-get-lambda-artifact-dir:
-    @echo {{LAMBDA_DIR}}
-
-
-# Return the frontend artifact directory name.
-code-bucket-get-frontend-artifact-dir:
-    @echo {{FRONTEND_DIR}}
-
-
-# Return the AppSpec artifact directory name.
-code-bucket-get-appspec-artifact-dir:
-    @echo {{APPSPEC_DIR}}
 
 
 # Delete local git branches whose upstream refs have gone away.
@@ -141,45 +118,6 @@ check-network vpc_name:
     echo "✅ Found public subnets: ${public_subnet_ids[*]}"
     echo "✅ Found private subnets: ${private_subnet_ids[*]}"
     echo "✅ AWS network prerequisites are present."
-
-
-# Open an ECS Exec shell in the worker service container.
-worker-debug-shell env service_name='ecs-worker' container_name='ecs-worker' command='/bin/sh':
-    #!/usr/bin/env bash
-    set -euo pipefail
-
-    if ! command -v session-manager-plugin >/dev/null 2>&1; then
-        echo "session-manager-plugin is not installed or not on PATH."
-        exit 1
-    fi
-
-    aws_region="${AWS_REGION:-eu-west-2}"
-    project_name="$(basename "{{PROJECT_DIR}}")"
-    cluster_name="{{env}}-${project_name}-cluster"
-
-    task_arn="$(
-        aws ecs list-tasks \
-          --region "$aws_region" \
-          --cluster "$cluster_name" \
-          --service-name "{{service_name}}" \
-          --desired-status RUNNING \
-          --query 'taskArns[0]' \
-          --output text
-    )"
-
-    if [[ -z "$task_arn" || "$task_arn" == "None" ]]; then
-        echo "No running task found for service {{service_name}} in cluster ${cluster_name}."
-        exit 1
-    fi
-
-    echo "Opening ECS Exec shell to {{container_name}} in {{service_name}}..."
-    aws ecs execute-command \
-      --region "$aws_region" \
-      --cluster "$cluster_name" \
-      --task "$task_arn" \
-      --container "{{container_name}}" \
-      --interactive \
-      --command "{{command}}"
 
 
 # Run a Terragrunt operation for one environment/module pair.

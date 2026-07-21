@@ -22,9 +22,7 @@ These instructions apply to the entire repository.
 - keep human-facing technical contracts in the nearest owning README, not duplicated in `REPO_INSTRUCTIONS.md`
 - use `REPO_INSTRUCTIONS.md` as the agent operating manual and context router
 - entry point: `README.md` (human-facing high-level map, setup, and infra layout)
-- workflow contracts: `.github/docs/README.md`
-- module contracts: `infra/modules/**/README.md` (shared contracts live under `infra/modules/aws/_shared/**/README.md`)
-- runtime behavior: `lambdas/**/README.md` and `containers/**/README.md`
+- module contracts: `infra/modules/**/README.md`
 - before editing, read the relevant local contract docs for the files you plan to touch and follow those contracts
 - when adding or reorganizing docs, prefer short README sections that point to the owning nested README rather than expanding the root README with deep implementation detail
 - when removing detail from one doc, relocate the content to the owning doc instead of dropping it; it may be shortened or clarified, but the underlying guidance must remain findable in the repo
@@ -37,42 +35,33 @@ These instructions apply to the entire repository.
 - only after that inspect implementation files for the selected shape
 - avoid loading unrelated capability areas unless the task requires them
 
-## CI OIDC Scope
+## Current Repo Shape
 
-- when changing CI OIDC roles, deploy permissions, artifact permissions, or `infra/live/ci/aws/oidc/terragrunt.hcl`, read `infra/modules/aws/_shared/oidc/README.md` and `.github/docs/README.md` before editing
-- treat the CI OIDC role as artifact-scoped unless the user explicitly asks to change that contract
-
-## Protected Live Stacks
-
-- never remove `aws/oidc`, `aws/ecr`, or `aws/code_bucket` from `infra/live/dev` or `infra/live/ci`
-- treat those stacks as protected deployment scaffolding even when pruning an environment to a smaller runtime subset
-- if a requested subset appears to exclude one of those protected stacks, keep the stack and call out that it is retained for workflow/bootstrap support
+- the active live stacks are `infra/live/dev/aws/security` and `infra/live/prod/aws/security`
+- the active Terraform module is `infra/modules/aws/security`
+- the repo-local helper surfaces are the root `justfile` and `scripts/ci/justfile`
+- treat the current filesystem and tracked config as the source of truth; if docs or comments reference repo surfaces that are not present, verify them before acting on them
 
 ## Feasibility + Dependency Checks (When Editing Infra / Workflows)
 
-- verify the runtime/deploy shape and required backing resources before changing infra or workflow ordering
+- verify the current stack/module shape and required backing resources before changing infra
 - before adding environments or changing generated AWS names, verify the resulting AWS names because many names include account, region, environment, and repo name
 - before adding Terragrunt dependency edges, verify the target live stack exists in that environment and review the raw dependency graph with `just tg-graph <env>` when needed
-- when changing reusable workflows, compare caller `with:` blocks to `workflow_call.inputs`, remove dead contract fields, and keep job `name:` values human-readable
-- for `workflow_dispatch` workflows, prefer `inputs.<name>` directly; do not add `github.event.inputs` fallbacks when the workflow already defines typed inputs
-- for shared infra plan/apply workflows, keep `task_*` stacks out of infra waves because code deploy owns task-definition rollout
 - for cross-stack output passthroughs, preserve consumer-facing output names and update the nearest module README
 - prefer Terragrunt `dependency` inputs plus `mock_outputs` over `terraform_remote_state`; if remote state is intentional, add a `# remote_state_reason: ...` comment
 - when introducing or expanding bootstrap/mock-output behavior, update the nearest owning human-facing README
-- for detailed checks, read `README.md` and `.github/docs/README.md`
+- for detailed checks, read `README.md` and the nearest owning README files
 
 ## Terragrunt Plan Expectation
 
-- for a change scoped to one concrete live stack/module, run the targeted plan, for example `just tg dev aws/service_worker plan`
-- for changes touching multiple stacks, shared modules, Terragrunt dependency edges, workflow ordering, or cross-stack contracts, run the environment plan, for example `just tg-all dev plan`
+- for a change scoped to one concrete live stack/module, run the targeted plan, for example `just tg dev aws/security plan`
+- for changes touching both environments, shared modules, Terragrunt dependency edges, or cross-stack contracts, run the environment plan, for example `just tg-all dev plan`
 - do not run both targeted and environment plans unless the first plan exposes a reason to broaden verification
 - for noisy plans or logs, create an ignored per-run directory before writing command output there, for example `mkdir -p tmp && run_tmp="$(mktemp -d tmp/plan.XXXXXX)"`, and return only filtered summary lines such as `No changes`, `Plan:`, `Error:`, `Failed`, or relevant `WARN`
-- treat saved plans as apply-intent artifacts; do not apply plans that captured bootstrap/mock values
+- treat saved plans as apply-intent artifacts
 - if credentials, network, permissions, or state access block planning, say so and name the exact manual plan command
-- for saved-plan and mock-output details, read `infra/README.md` and `.github/docs/README.md`
+- for saved-plan and mock-output details, read `infra/README.md`
 
 ## High-Signal Edit Warnings
 
-- before editing `scripts/ci/justfile`, `scripts/deploy/justfile`, or `scripts/destroy/justfile`, warn the human in commentary that the file is used by automation as well as local commands; for `scripts/destroy/justfile`, also warn that it owns destroy commands
-- before editing `.github/workflows/shared_*.yml`, warn the human in commentary that shared CI workflows have broad blast radius
-- before editing `infra/modules/aws/_shared/**`, warn the human in commentary that shared Terraform modules have broad downstream contract impact
+- before editing `scripts/ci/justfile`, warn the human in commentary that the file is used by automation as well as local commands
